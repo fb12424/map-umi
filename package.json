@@ -1,0 +1,25 @@
+{
+  "name": "map-umi",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "umi dev",
+    "start": "umi dev",
+    "build": "umi build"
+  },
+  "dependencies": {
+    "@turf/buffer": "7.4.0",
+    "@turf/union": "7.4.0",
+    "antd": "4.24.16",
+    "maplibre-gl": "4.7.1",
+    "react": "17.0.2",
+    "react-dom": "17.0.2",
+    "umi": "3.5.43"
+  },
+  "devDependencies": {
+    "@umijs/preset-react": "1.8.32"
+  },
+  "engines": {
+    "node": ">=16.14.0"
+  }
+}
