@@ -16,8 +16,8 @@ import {
 import { history, useParams } from "umi";
 import FloorGeoJsonCompare from "../components/FloorGeoJsonCompare.jsx";
 import FloorGeoJsonUpload from "../components/FloorGeoJsonUpload.jsx";
-import FloorMapEditor from "../components/FloorMapEditor.jsx";
-import FloorMapPreview from "../components/FloorMapPreview.jsx";
+import FloorMapEditor from "../components/FloorMapEditor/index.jsx";
+import FloorEditPreview from "../components/FloorEditPreview/index.jsx";
 import FloorMerchantUpdate from "../components/FloorMerchantUpdate.jsx";
 import FloorOutlineUpload from "../components/FloorOutlineUpload.jsx";
 import {
@@ -445,7 +445,7 @@ export default function FloorCreate() {
             }
           >
             {shops ? (
-              <FloorMapPreview
+              <FloorEditPreview
                 geojson={shops}
                 floor={outlineUpload?.geojson ?? null}
                 fitKey={mapVersion}

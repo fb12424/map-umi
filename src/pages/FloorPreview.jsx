@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button, Card, Empty, Result, Space, Tag, Typography, message } from 'antd';
 import { history, useParams } from 'umi';
-import FloorPreviewMap from '../components/FloorPreviewMap.jsx';
+import FloorGuideMap from '../components/FloorGuideMap/index.jsx';
 import { deriveFloorFromShops } from '../lib/floorGeometry.js';
 import { normalizeShopData } from '../lib/shopGeometry.js';
 import { getMap, getMapGeoJson, getMapOutline } from '../services/maps.js';
@@ -113,7 +113,7 @@ export default function FloorPreview() {
 
       <Card className="floor-preview-card">
         {shops?.features?.length ? (
-          <FloorPreviewMap shops={shops} floor={outline} />
+          <FloorGuideMap shops={shops} floor={outline} />
         ) : (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}

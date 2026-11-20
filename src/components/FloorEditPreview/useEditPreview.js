@@ -1,140 +1,37 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 import {
   AttributionControl,
-  LngLatBounds,
   Map as MapLibreMap,
   Marker,
   NavigationControl,
-} from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
-import { deriveFloorFromShops } from '../lib/floorGeometry.js';
+} from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+import { deriveFloorFromShops } from "../../lib/floorGeometry.js";
 import {
-  findDuplicateCodes,
-  labelPoint,
-  labelWidth,
-  shortLabel,
-} from '../lib/shopGeometry.js';
-import './FloorMapPreview.css';
+  CORRIDOR_COLOR,
+  featureBounds,
+  merchantNameOf,
+} from "../../lib/geoCommon.js";
+import { labelPoint, shortLabel } from "../../lib/shopGeometry.js";
+import {
+  ALL_LAYERS,
+  DUPLICATE_PROP,
+  FILL_COLOR,
+  FILL_LAYER,
+  FLOOR_FILL_LAYER,
+  FLOOR_SOURCE,
+  LABEL_MIN_ZOOM,
+  OUTLINE_LAYER,
+  SOURCE_ID,
+  analyzeCodes,
+  isValidFloor,
+  labelSize,
+  labelTextFor,
+  markDuplicates,
+  renderLabelContent,
+} from "./previewCore.js";
 
-const SOURCE_ID = 'preview-shops';
-const FLOOR_SOURCE = 'preview-floor';
-const FILL_LAYER = 'preview-shops-fill';
-const OUTLINE_LAYER = 'preview-shops-outline';
-const FLOOR_FILL_LAYER = 'preview-floor-fill';
-const ALL_LAYERS = [FILL_LAYER, OUTLINE_LAYER, FLOOR_FILL_LAYER];
-const LABEL_MIN_ZOOM = 16.3;
-
-const CORRIDOR_COLOR = '#f4e5c9';
-const HOVER_COLOR = '#f2a33a';
-const SELECTED_COLOR = '#2563eb';
-const LINKED_COLOR = '#0ea5e9';
-const DUPLICATE_COLOR = '#dc2626';
-const DUPLICATE_PROP = 'duplicate_code';
-
-const AREA_COLOR = [
-  'step',
-  ['coalesce', ['get', 'area_m2'], 0],
-  '#c3d9f2',
-  30, '#98bde8',
-  60, '#6597d7',
-  120, '#3c72bb',
-  200, '#1d4a8f',
-];
-
-const FILL_COLOR = [
-  'case',
-  ['boolean', ['feature-state', 'linked'], false],
-  LINKED_COLOR,
-  ['boolean', ['feature-state', 'selected'], false],
-  SELECTED_COLOR,
-  ['boolean', ['feature-state', 'hover'], false],
-  HOVER_COLOR,
-  ['boolean', ['get', DUPLICATE_PROP], false],
-  DUPLICATE_COLOR,
-  AREA_COLOR,
-];
-
-function analyzeCodes(features) {
-  const duplicated = new Set(findDuplicateCodes(features));
-  let normal = 0;
-  let missing = 0;
-
-  for (const feature of features) {
-    const code = (feature.properties?.code || '').trim();
-    if (!code) missing += 1;
-    else if (!duplicated.has(code)) normal += 1;
-  }
-
-  return { normal, missing, duplicated };
-}
-
-function markDuplicates(geojson, duplicated) {
-  if (!duplicated.size) return geojson;
-  return {
-    ...geojson,
-    features: geojson.features.map((feature) =>
-      duplicated.has((feature.properties?.code || '').trim())
-        ? {
-            ...feature,
-            properties: { ...feature.properties, [DUPLICATE_PROP]: true },
-          }
-        : feature,
-    ),
-  };
-}
-
-function featureBounds(features) {
-  const bounds = new LngLatBounds();
-  const walk = (coords) => {
-    if (typeof coords[0] === 'number') {
-      bounds.extend(coords);
-      return;
-    }
-    coords.forEach(walk);
-  };
-  for (const feature of features) walk(feature.geometry.coordinates);
-  return bounds;
-}
-
-function isValidFloor(floor) {
-  return floor?.type === 'FeatureCollection' && floor.features?.length > 0;
-}
-
-const labelTextFor = (item, showUnnumberedIndex) => {
-  if (item.codeText !== null) return item.codeText;
-  return showUnnumberedIndex && item.index !== null
-    ? `#${item.index}`
-    : '未编号';
-};
-
-const merchantNameOf = (properties) =>
-  (properties.merchantName || properties.shopName || properties.brand || '').trim();
-
-function renderLabelContent(el, text, merchantName) {
-  el.textContent = '';
-
-  const code = document.createElement('span');
-  code.className = 'shop-label-code';
-  code.textContent = text;
-  el.appendChild(code);
-
-  el.classList.toggle('has-merchant', Boolean(merchantName));
-  if (!merchantName) return;
-
-  const merchant = document.createElement('span');
-  merchant.className = 'shop-label-merchant';
-  merchant.textContent = merchantName;
-  el.appendChild(merchant);
-}
-
-function labelSize(text, merchantName) {
-  return {
-    width: Math.max(labelWidth(text), merchantName ? labelWidth(merchantName) : 0),
-    height: merchantName ? 34 : 22,
-  };
-}
-
-export default function FloorMapPreview({
+export default function useEditPreview({
   geojson,
   floor = null,
   fitKey,
@@ -174,9 +71,9 @@ export default function FloorMapPreview({
         sources: {},
         layers: [
           {
-            id: 'background',
-            type: 'background',
-            paint: { 'background-color': '#eef1f6' },
+            id: "background",
+            type: "background",
+            paint: { "background-color": "#eef1f6" },
           },
         ],
       },
@@ -193,20 +90,20 @@ export default function FloorMapPreview({
     mapRef.current = map;
     map.addControl(
       new NavigationControl({ showCompass: false }),
-      'top-right',
+      "top-right",
     );
     map.addControl(
       new AttributionControl({
         compact: true,
-        customAttribution: '数据：本地上传 · WGS84',
+        customAttribution: "数据：本地上传 · WGS84",
       }),
-      'bottom-right',
+      "bottom-right",
     );
 
     if (map.isStyleLoaded()) {
       setMapReady(true);
     } else {
-      map.on('load', () => setMapReady(true));
+      map.on("load", () => setMapReady(true));
     }
 
     return () => {
@@ -258,28 +155,28 @@ export default function FloorMapPreview({
       try {
         floorGeojson = deriveFloorFromShops(geojson.features);
       } catch (err) {
-        console.warn('楼板派生失败，仅显示商铺', err);
+        console.warn("楼板派生失败，仅显示商铺", err);
       }
     }
     onFloorReadyRef.current?.(floorGeojson);
 
     if (floorGeojson) {
-      map.addSource(FLOOR_SOURCE, { type: 'geojson', data: floorGeojson });
+      map.addSource(FLOOR_SOURCE, { type: "geojson", data: floorGeojson });
       map.addLayer({
         id: FLOOR_FILL_LAYER,
-        type: 'fill',
+        type: "fill",
         source: FLOOR_SOURCE,
         paint: {
-          'fill-color': CORRIDOR_COLOR,
-          'fill-opacity': 1,
+          "fill-color": CORRIDOR_COLOR,
+          "fill-opacity": 1,
         },
       });
     }
 
     map.addSource(SOURCE_ID, {
-      type: 'geojson',
+      type: "geojson",
       data: mapData,
-      promoteId: 'uid',
+      promoteId: "uid",
     });
 
     if (activeUidRef.current) {
@@ -300,36 +197,36 @@ export default function FloorMapPreview({
 
     map.addLayer({
       id: FILL_LAYER,
-      type: 'fill',
+      type: "fill",
       source: SOURCE_ID,
       paint: {
-        'fill-color': FILL_COLOR,
-        'fill-opacity': 0.9,
+        "fill-color": FILL_COLOR,
+        "fill-opacity": 0.9,
       },
     });
 
     map.addLayer({
       id: OUTLINE_LAYER,
-      type: 'line',
+      type: "line",
       source: SOURCE_ID,
       paint: {
-        'line-color': [
-          'case',
-          ['boolean', ['feature-state', 'linked'], false],
-          LINKED_COLOR,
-          ['boolean', ['feature-state', 'selected'], false],
-          '#1d4ed8',
-          ['boolean', ['feature-state', 'hover'], false],
-          '#f97316',
-          '#ffffff',
+        "line-color": [
+          "case",
+          ["boolean", ["feature-state", "linked"], false],
+          "#0ea5e9",
+          ["boolean", ["feature-state", "selected"], false],
+          "#1d4ed8",
+          ["boolean", ["feature-state", "hover"], false],
+          "#f97316",
+          "#ffffff",
         ],
-        'line-width': [
-          'case',
-          ['boolean', ['feature-state', 'linked'], false],
+        "line-width": [
+          "case",
+          ["boolean", ["feature-state", "linked"], false],
           4,
-          ['boolean', ['feature-state', 'selected'], false],
+          ["boolean", ["feature-state", "selected"], false],
           3.5,
-          ['boolean', ['feature-state', 'hover'], false],
+          ["boolean", ["feature-state", "hover"], false],
           3,
           1.2,
         ],
@@ -337,9 +234,14 @@ export default function FloorMapPreview({
     });
 
     mapData.features.forEach((feature, featureIndex) => {
-      const { uid, label, area_m2: area, [DUPLICATE_PROP]: isDuplicate } = feature.properties;
+      const {
+        uid,
+        label,
+        area_m2: area,
+        [DUPLICATE_PROP]: isDuplicate,
+      } = feature.properties;
 
-      const code = (feature.properties.code || '').trim();
+      const code = (feature.properties.code || "").trim();
       const item = {
         uid,
         area,
@@ -349,10 +251,10 @@ export default function FloorMapPreview({
         index: featureIndex + 1,
       };
       const text = labelTextFor(item, showIndexRef.current);
-      const el = document.createElement('div');
-      el.className = isDuplicate ? 'shop-label is-duplicate' : 'shop-label';
+      const el = document.createElement("div");
+      el.className = isDuplicate ? "shop-label is-duplicate" : "shop-label";
       renderLabelContent(el, text, item.merchantName);
-      const marker = new Marker({ element: el, anchor: 'center' })
+      const marker = new Marker({ element: el, anchor: "center" })
         .setLngLat(item.centroid)
         .addTo(map);
 
@@ -380,13 +282,13 @@ export default function FloorMapPreview({
       const height = map.getContainer().clientHeight;
 
       for (const item of labels) {
-        item.el.classList.toggle('is-linked', item.uid === linkedRef.current);
+        item.el.classList.toggle("is-linked", item.uid === linkedRef.current);
       }
 
       if (zoom < LABEL_MIN_ZOOM) {
         for (const item of labels) {
           item.el.style.display =
-            item.uid === linkedRef.current ? '' : 'none';
+            item.uid === linkedRef.current ? "" : "none";
         }
         return;
       }
@@ -395,8 +297,10 @@ export default function FloorMapPreview({
         .slice()
         .sort(
           (a, b) =>
-            Number(b.uid === linkedRef.current) - Number(a.uid === linkedRef.current) ||
-            Number(b.uid === hoveredRef.current) - Number(a.uid === hoveredRef.current) ||
+            Number(b.uid === linkedRef.current) -
+              Number(a.uid === linkedRef.current) ||
+            Number(b.uid === hoveredRef.current) -
+              Number(a.uid === hoveredRef.current) ||
             b.area - a.area,
         );
       const placed = [];
@@ -414,16 +318,21 @@ export default function FloorMapPreview({
 
         if (visible && !isLinked) {
           for (const box of placed) {
-            if (left < box.right && right > box.left && top < box.bottom && bottom > box.top) {
+            if (
+              left < box.right &&
+              right > box.left &&
+              top < box.bottom &&
+              bottom > box.top
+            ) {
               visible = false;
               break;
             }
           }
         }
 
-        item.el.style.display = visible ? '' : 'none';
+        item.el.style.display = visible ? "" : "none";
         if (visible) placed.push({ left, right, top, bottom });
-        item.el.classList.toggle('is-active', item.uid === hoveredRef.current);
+        item.el.classList.toggle("is-active", item.uid === hoveredRef.current);
       }
     };
 
@@ -441,7 +350,7 @@ export default function FloorMapPreview({
       if (uid) {
         map.setFeatureState({ source: SOURCE_ID, id: uid }, { hover: true });
       }
-      map.getCanvas().style.cursor = uid ? 'pointer' : '';
+      map.getCanvas().style.cursor = uid ? "pointer" : "";
       updateLabels();
     };
 
@@ -463,18 +372,18 @@ export default function FloorMapPreview({
       const props = features[0].properties;
       onShopClickRef.current?.({
         uid: props.uid,
-        code: (props.code || '').trim(),
-        label: props.label || props.code || '未编号',
-        merchantNo: props.merchantNo || '',
-        merchantName: props.merchantName || '',
+        code: (props.code || "").trim(),
+        label: props.label || props.code || "未编号",
+        merchantNo: props.merchantNo || "",
+        merchantName: props.merchantName || "",
       });
     };
 
-    map.on('move', updateLabels);
-    map.on('resize', updateLabels);
-    map.on('mousemove', onMouseMove);
-    map.on('mouseout', onMouseOut);
-    map.on('click', onClick);
+    map.on("move", updateLabels);
+    map.on("resize", updateLabels);
+    map.on("mousemove", onMouseMove);
+    map.on("mouseout", onMouseOut);
+    map.on("click", onClick);
 
     const bounds = featureBounds(
       floorGeojson?.features?.length
@@ -500,19 +409,19 @@ export default function FloorMapPreview({
     if (isNewUpload) {
       fitFrame = requestAnimationFrame(() => fit(0));
     }
-    map.once('idle', updateLabels);
+    map.once("idle", updateLabels);
     updateLabels();
 
     return () => {
       if (!mapRef.current) return;
       cancelAnimationFrame(fitFrame);
       fitRef.current = null;
-      map.off('move', updateLabels);
-      map.off('resize', updateLabels);
-      map.off('mousemove', onMouseMove);
-      map.off('mouseout', onMouseOut);
-      map.off('click', onClick);
-      map.off('idle', updateLabels);
+      map.off("move", updateLabels);
+      map.off("resize", updateLabels);
+      map.off("mousemove", onMouseMove);
+      map.off("mouseout", onMouseOut);
+      map.off("click", onClick);
+      map.off("idle", updateLabels);
       removeData();
     };
   }, [geojson, floor, fitKey, mapReady]);
@@ -530,11 +439,17 @@ export default function FloorMapPreview({
     const prev = linkedRef.current;
     if (prev !== next) {
       if (prev && map.getSource(SOURCE_ID)) {
-        map.setFeatureState({ source: SOURCE_ID, id: prev }, { linked: false });
+        map.setFeatureState(
+          { source: SOURCE_ID, id: prev },
+          { linked: false },
+        );
       }
       linkedRef.current = next;
       if (next && map.getSource(SOURCE_ID)) {
-        map.setFeatureState({ source: SOURCE_ID, id: next }, { linked: true });
+        map.setFeatureState(
+          { source: SOURCE_ID, id: next },
+          { linked: true },
+        );
       }
     }
     updateLabelsRef.current?.();
@@ -561,52 +476,21 @@ export default function FloorMapPreview({
     if (prev === next) return;
 
     if (prev && map.getSource(SOURCE_ID)) {
-      map.setFeatureState({ source: SOURCE_ID, id: prev }, { selected: false });
+      map.setFeatureState(
+        { source: SOURCE_ID, id: prev },
+        { selected: false },
+      );
     }
     selectedRef.current = next;
     if (next && map.getSource(SOURCE_ID)) {
-      map.setFeatureState({ source: SOURCE_ID, id: next }, { selected: true });
+      map.setFeatureState(
+        { source: SOURCE_ID, id: next },
+        { selected: true },
+      );
     }
   }, [activeUid, geojson, mapReady]);
 
-  return (
-    <div className="preview-map-wrap">
-      <div ref={containerRef} className="preview-map" />
+  const fitAll = () => fitRef.current?.();
 
-      {stats && (
-        <div className="preview-map-summary">
-          <div>
-            <strong>{stats.count}</strong> 间铺位
-          </div>
-          <div className="preview-map-code-stats">
-            <span>
-              正常位号 <strong>{stats.normal}</strong>
-            </span>
-            <span className={stats.missing ? 'is-warning' : ''}>
-              无位号 <strong>{stats.missing}</strong>
-            </span>
-            <span className={stats.duplicate ? 'is-danger' : ''}>
-              重复位号 <strong>{stats.duplicate}</strong>
-            </span>
-          </div>
-          {stats.duplicate > 0 && (
-            <div className="preview-map-legend">
-              <i aria-hidden="true" />
-              红色铺位为重复位号
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="preview-map-toolbar">
-        <button
-          type="button"
-          className="preview-fit"
-          onClick={() => fitRef.current?.()}
-        >
-          适配全图
-        </button>
-      </div>
-    </div>
-  );
+  return { containerRef, stats, fitAll };
 }
