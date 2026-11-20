@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   Col,
+  Divider,
   Empty,
   Form,
   Input,
@@ -15,15 +16,39 @@ import {
 import { history, useParams } from "umi";
 import FloorGeoJsonCompare from "../components/FloorGeoJsonCompare.jsx";
 import FloorGeoJsonUpload from "../components/FloorGeoJsonUpload.jsx";
+import FloorMapEditor from "../components/FloorMapEditor.jsx";
 import FloorMapPreview from "../components/FloorMapPreview.jsx";
 import FloorMerchantUpdate from "../components/FloorMerchantUpdate.jsx";
+import FloorOutlineUpload from "../components/FloorOutlineUpload.jsx";
+import {
+  deriveFloorFromShops,
+  normalizeOutlineGeoJson,
+} from "../lib/floorGeometry.js";
 import { findDuplicateCodes, normalizeShopData } from "../lib/shopGeometry.js";
 import {
   createMap,
   getMap,
   getMapGeoJson,
+  getMapOutline,
   updateMap,
 } from "../services/maps.js";
+
+function savedOutlineValue(raw) {
+  if (!raw) return null;
+  try {
+    const { geojson, polygonCount } = normalizeOutlineGeoJson(raw);
+    return {
+      fileName: "已保存轮廓",
+      fileSize: null,
+      polygonCount,
+      geojson,
+      source: "saved",
+    };
+  } catch (error) {
+    console.warn("已保存轮廓解析失败", error);
+    return null;
+  }
+}
 
 export default function FloorCreate() {
   const { floorId } = useParams();
@@ -38,6 +63,8 @@ export default function FloorCreate() {
   const [floorGeojson, setFloorGeojson] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [linkedUid, setLinkedUid] = useState(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [outlineUpload, setOutlineUpload] = useState(null);
 
   const isEdit = !!floorId;
   const dataset = isEdit ? upload ?? saved : upload;
@@ -49,8 +76,16 @@ export default function FloorCreate() {
   const hasDuplicateCodes = duplicateCodes.length > 0;
   const duplicateText =
     duplicateCodes.length > 8
-      ? `${duplicateCodes.slice(0, 8).join("、")} 等 ${duplicateCodes.length} 个`
+      ? `${duplicateCodes.slice(0, 8).join("、")} 等 ${
+          duplicateCodes.length
+        } 个`
       : duplicateCodes.join("、");
+
+  const canEditManually =
+    Boolean(dataset?.raw && shops) &&
+    !compareOpen &&
+    !submitting &&
+    !(isEdit && upload && !uploadApplied);
 
   useEffect(() => {
     form.resetFields();
@@ -61,6 +96,8 @@ export default function FloorCreate() {
     setSaved(null);
     setEditing(null);
     setFloorGeojson(null);
+    setEditorOpen(false);
+    setOutlineUpload(null);
     setMapVersion((version) => version + 1);
 
     if (!floorId) return undefined;
@@ -68,8 +105,12 @@ export default function FloorCreate() {
     let active = true;
     setLoading(true);
 
-    Promise.all([getMap(floorId), getMapGeoJson(floorId)])
-      .then(([map, geojson]) => {
+    Promise.all([
+      getMap(floorId),
+      getMapGeoJson(floorId),
+      getMapOutline(floorId).catch(() => null),
+    ])
+      .then(([map, geojson, outline]) => {
         if (!active) return;
         form.setFieldsValue({
           code: map.floorCode,
@@ -81,6 +122,7 @@ export default function FloorCreate() {
           shops: normalizeShopData(geojson),
           unitCount: map.unitCount,
         });
+        setOutlineUpload(savedOutlineValue(outline));
         setMapVersion((version) => version + 1);
       })
       .catch((error) => {
@@ -130,6 +172,17 @@ export default function FloorCreate() {
     form.setFieldValue("shopCount", merged.shops.features.length);
   };
 
+  const handleEditorApply = (nextDataset) => {
+    if (isEdit && !upload) setSaved(nextDataset);
+    else setUpload(nextDataset);
+
+    setUploadApplied(true);
+    setLinkedUid(null);
+    setEditing(null);
+    form.setFieldValue("shopCount", nextDataset.shops.features.length);
+    setEditorOpen(false);
+  };
+
   const handleShopClick = (shop) => {
     setEditing(shop);
   };
@@ -140,7 +193,6 @@ export default function FloorCreate() {
     const nextCode = values.code.trim();
     const merchantNo = (values.merchantNo || "").trim();
     const merchantName = (values.merchantName || "").trim();
-    const rawIndex = Number(editing.uid.slice("shop-".length));
 
     const update = (prev) => {
       if (!prev) return prev;
@@ -166,8 +218,8 @@ export default function FloorCreate() {
         },
         raw: {
           ...prev.raw,
-          features: prev.raw.features.map((feature, index) =>
-            index === rawIndex
+          features: prev.raw.features.map((feature) =>
+            feature.properties?.uid === editing.uid
               ? {
                   ...feature,
                   properties: {
@@ -222,20 +274,33 @@ export default function FloorCreate() {
     }
 
     setSubmitting(true);
+    // 先让 loading 状态渲染，再同步重算楼板轮廓
+    await new Promise((resolve) => setTimeout(resolve, 0));
     try {
+      let outline = outlineUpload?.geojson ?? floorGeojson;
+      if (!outlineUpload) {
+        try {
+          if (shops?.features?.length) {
+            outline = deriveFloorFromShops(shops.features);
+          }
+        } catch (error) {
+          console.warn("楼板轮廓重算失败，沿用预览轮廓", error);
+        }
+      }
+
       if (isEdit) {
         const geojson = upload?.raw ?? saved?.raw;
         await updateMap(floorId, {
           ...base,
           ...(geojson ? { geojson } : {}),
-          ...(floorGeojson ? { outline: floorGeojson } : {}),
+          ...(outline ? { outline } : {}),
         });
         message.success(`楼层 ${base.floorCode} 已更新`);
       } else {
         const created = await createMap({
           ...base,
           geojson: upload.raw,
-          ...(floorGeojson ? { outline: floorGeojson } : {}),
+          ...(outline ? { outline } : {}),
         });
         message.success(`楼层 ${created.floorCode} 已创建`);
       }
@@ -249,40 +314,22 @@ export default function FloorCreate() {
 
   return (
     <div className="page-stack create-page">
-      <div className="page-head">
-        <div>
-          <h1>{isEdit ? "编辑楼层" : "新增楼层"}</h1>
-        </div>
-        <Button onClick={() => history.push("/floors")}>返回列表</Button>
-      </div>
-
-      <Row
-        className="create-layout"
-        gutter={[16, 16]}
-        align="stretch"
-      >
-        <Col
-          xs={24}
-          lg={6}
-        >
+      <Row className="create-layout" gutter={[16, 16]} align="stretch">
+        <Col xs={24} lg={6}>
           <Card title="楼层信息">
-            <FloorGeoJsonUpload
-              value={upload}
-              onChange={handleUploadChange}
-            />
+            <FloorGeoJsonUpload value={upload} onChange={handleUploadChange} />
 
             {isEdit && upload && (
               <Alert
                 style={{ marginTop: 16 }}
                 type={uploadApplied ? "success" : "warning"}
                 showIcon
-                message={uploadApplied ? "新地图已应用，保存后生效" : "新地图待比对"}
+                message={
+                  uploadApplied ? "新地图已应用，保存后生效" : "新地图待比对"
+                }
                 description={`${upload.fileName} · ${upload.shops.features.length} 个铺位面`}
                 action={
-                  <Space
-                    direction="vertical"
-                    size={4}
-                  >
+                  <Space direction="vertical" size={4}>
                     <Button
                       size="small"
                       type="primary"
@@ -291,10 +338,7 @@ export default function FloorCreate() {
                     >
                       {uploadApplied ? "重新比对" : "比对并应用"}
                     </Button>
-                    <Button
-                      size="small"
-                      onClick={handleDiscardUpload}
-                    >
+                    <Button size="small" onClick={handleDiscardUpload}>
                       放弃
                     </Button>
                   </Space>
@@ -312,6 +356,18 @@ export default function FloorCreate() {
               />
             )}
 
+            {/* <Divider
+              orientation="left"
+              plain
+              style={{ margin: "24px 0 16px" }}
+            >
+              楼板轮廓（可选）
+            </Divider>
+            <FloorOutlineUpload
+              value={outlineUpload}
+              onChange={setOutlineUpload}
+            /> */}
+
             <Form
               form={form}
               layout="vertical"
@@ -319,25 +375,16 @@ export default function FloorCreate() {
               style={{ marginTop: 24 }}
             >
               <Row gutter={16}>
-                <Col
-                  xs={24}
-                  sm={12}
-                >
+                <Col xs={24} sm={12}>
                   <Form.Item
                     name="code"
                     label="楼层编号"
                     rules={[{ required: true, message: "请输入楼层编号" }]}
                   >
-                    <Input
-                      placeholder="如 1F、B1"
-                      disabled={isEdit}
-                    />
+                    <Input placeholder="如 1F、B1" disabled={isEdit} />
                   </Form.Item>
                 </Col>
-                <Col
-                  xs={24}
-                  sm={12}
-                >
+                <Col xs={24} sm={12}>
                   <Form.Item
                     name="name"
                     label="楼层名称"
@@ -346,14 +393,8 @@ export default function FloorCreate() {
                     <Input placeholder="如 一层" />
                   </Form.Item>
                 </Col>
-                <Col
-                  xs={24}
-                  sm={12}
-                >
-                  <Form.Item
-                    name="shopCount"
-                    label="商铺个数"
-                  >
+                <Col xs={24} sm={12}>
+                  <Form.Item name="shopCount" label="商铺个数">
                     <InputNumber
                       min={0}
                       precision={0}
@@ -384,17 +425,29 @@ export default function FloorCreate() {
           </Card>
         </Col>
 
-        <Col
-          xs={24}
-          lg={18}
-        >
+        <Col xs={24} lg={18}>
           <Card
             title="楼层地图预览"
             className="preview-card"
+            extra={
+              <Space>
+                <Button
+                  type="primary"
+                  disabled={!canEditManually}
+                  onClick={() => setEditorOpen(true)}
+                >
+                  手动编辑地图
+                </Button>
+                <Button type="link" onClick={() => history.push("/floors")}>
+                  返回列表
+                </Button>
+              </Space>
+            }
           >
             {shops ? (
               <FloorMapPreview
                 geojson={shops}
+                floor={outlineUpload?.geojson ?? null}
                 fitKey={mapVersion}
                 activeUid={editing?.uid ?? null}
                 linkedUid={compareOpen ? linkedUid : null}
@@ -445,6 +498,15 @@ export default function FloorCreate() {
           }}
           onConfirm={handleCompareConfirm}
           onHoverTarget={setLinkedUid}
+        />
+      )}
+
+      {editorOpen && dataset?.raw && (
+        <FloorMapEditor
+          dataset={dataset}
+          floorGeojson={outlineUpload?.geojson ?? floorGeojson}
+          onCancel={() => setEditorOpen(false)}
+          onApply={handleEditorApply}
         />
       )}
     </div>

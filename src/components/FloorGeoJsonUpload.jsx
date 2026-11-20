@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Alert, Upload, message } from "antd";
+import { Alert, Button, Upload, message } from "antd";
 import { assertWgs84, normalizeShopData } from "../lib/shopGeometry.js";
+import { UploadOutlined } from '@ant-design/icons';
 
 const { Dragger } = Upload;
 
@@ -51,7 +52,7 @@ export default function FloorGeoJsonUpload({ value, onChange }) {
 
   return (
     <>
-      <Dragger
+      <Upload
         accept=".geojson,.json,application/geo+json,application/json"
         maxCount={1}
         multiple={false}
@@ -60,10 +61,11 @@ export default function FloorGeoJsonUpload({ value, onChange }) {
         onChange={handleFile}
         disabled={parsing}
       >
-        <p className="ant-upload-text">
+        {/* <p className="ant-upload-text">
           {parsing ? "正在解析 GeoJSON…" : "点击或拖拽 GeoJSON 文件到此处"}
-        </p>
-      </Dragger>
+        </p> */}
+        <Button icon={<UploadOutlined />}>{parsing ? "正在解析 GeoJSON…" : "上传 GeoJSON 地图文件"}</Button>
+      </Upload>
 
       {value && (
         <Alert

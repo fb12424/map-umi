@@ -12,6 +12,7 @@
     "@turf/union": "7.4.0",
     "antd": "4.24.16",
     "maplibre-gl": "4.7.1",
+    "polyclip-ts": "0.16.8",
     "react": "17.0.2",
     "react-dom": "17.0.2",
     "umi": "3.5.43"

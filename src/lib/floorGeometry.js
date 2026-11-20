@@ -1,5 +1,6 @@
 import { buffer as turfBuffer } from '@turf/buffer';
 import { union as turfUnion } from '@turf/union';
+import { assertWgs84 } from './shopGeometry.js';
 
 export const DEFAULT_BUFFER_METERS = 4;
 const BUFFER_STEPS = 8;
@@ -27,6 +28,65 @@ function outlineOnly(geometry) {
     };
   }
   return geometry;
+}
+
+function collectOutlinePolygons(node, out) {
+  if (!node) return;
+  if (node.type === 'FeatureCollection') {
+    for (const feature of node.features ?? []) {
+      collectOutlinePolygons(feature, out);
+    }
+    return;
+  }
+  if (node.type === 'Feature') {
+    collectOutlinePolygons(node.geometry, out);
+    return;
+  }
+  if (node.type === 'Polygon') {
+    out.push(node.coordinates);
+    return;
+  }
+  if (node.type === 'MultiPolygon') {
+    out.push(...node.coordinates);
+    return;
+  }
+  if (node.type === 'GeometryCollection') {
+    for (const geometry of node.geometries ?? []) {
+      collectOutlinePolygons(geometry, out);
+    }
+  }
+}
+
+function closeRing(ring) {
+  if (!Array.isArray(ring) || ring.length < 3) {
+    throw new Error('轮廓环至少需要 3 个坐标点');
+  }
+  const first = ring[0];
+  const last = ring[ring.length - 1];
+  if (first[0] === last[0] && first[1] === last[1]) return ring;
+  return [...ring, first];
+}
+
+export function normalizeOutlineGeoJson(raw) {
+  const polygons = [];
+  collectOutlinePolygons(raw, polygons);
+  if (!polygons.length) {
+    throw new Error('没有可用的 Polygon / MultiPolygon 轮廓面');
+  }
+
+  const normalized = polygons.map((polygon) => polygon.map(closeRing));
+  const geometry =
+    normalized.length === 1
+      ? { type: 'Polygon', coordinates: normalized[0] }
+      : { type: 'MultiPolygon', coordinates: normalized };
+
+  const geojson = {
+    type: 'FeatureCollection',
+    features: [{ type: 'Feature', properties: {}, geometry }],
+  };
+  assertWgs84(geojson.features);
+
+  return { geojson, polygonCount: normalized.length };
 }
 
 export function deriveFloorFromShops(features, options = {}) {

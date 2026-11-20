@@ -123,7 +123,14 @@ export function findDuplicateCodes(features) {
 export function normalizeShopData(geojson) {
   const features = [];
 
-  geojson.features.forEach((feature, index) => {
+  let nextUid = 0;
+  for (const feature of geojson.features) {
+    const match = /^shop-(\d+)$/.exec(feature.properties?.uid ?? '');
+    if (match) nextUid = Math.max(nextUid, Number(match[1]) + 1);
+  }
+  const usedUids = new Set();
+
+  geojson.features.forEach((feature) => {
     const geometry = feature.geometry;
     let polygons = [];
 
@@ -140,6 +147,14 @@ export function normalizeShopData(geojson) {
 
     if (!polygons.length) return;
 
+    let uid =
+      typeof feature.properties?.uid === 'string'
+        ? feature.properties.uid.trim()
+        : '';
+    if (!uid || usedUids.has(uid)) uid = `shop-${nextUid++}`;
+    usedUids.add(uid);
+    feature.properties = { ...feature.properties, uid };
+
     const code = (feature.properties?.code || '').trim();
     const area = Number(feature.properties?.area_m2);
 
@@ -151,7 +166,7 @@ export function normalizeShopData(geojson) {
         code,
         label: code || '未编号',
         area_m2: Number.isFinite(area) ? area : 0,
-        uid: `shop-${index}`,
+        uid,
       },
     });
   });

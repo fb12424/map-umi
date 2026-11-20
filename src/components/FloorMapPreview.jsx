@@ -96,6 +96,10 @@ function featureBounds(features) {
   return bounds;
 }
 
+function isValidFloor(floor) {
+  return floor?.type === 'FeatureCollection' && floor.features?.length > 0;
+}
+
 const labelTextFor = (item, showUnnumberedIndex) => {
   if (item.codeText !== null) return item.codeText;
   return showUnnumberedIndex && item.index !== null
@@ -132,6 +136,7 @@ function labelSize(text, merchantName) {
 
 export default function FloorMapPreview({
   geojson,
+  floor = null,
   fitKey,
   activeUid = null,
   linkedUid = null,
@@ -248,11 +253,13 @@ export default function FloorMapPreview({
     const codeStats = analyzeCodes(geojson.features);
     const mapData = markDuplicates(geojson, codeStats.duplicated);
 
-    let floorGeojson = null;
-    try {
-      floorGeojson = deriveFloorFromShops(geojson.features);
-    } catch (err) {
-      console.warn('楼板派生失败，仅显示商铺', err);
+    let floorGeojson = isValidFloor(floor) ? floor : null;
+    if (!floorGeojson) {
+      try {
+        floorGeojson = deriveFloorFromShops(geojson.features);
+      } catch (err) {
+        console.warn('楼板派生失败，仅显示商铺', err);
+      }
     }
     onFloorReadyRef.current?.(floorGeojson);
 
@@ -329,18 +336,17 @@ export default function FloorMapPreview({
       },
     });
 
-    for (const feature of mapData.features) {
+    mapData.features.forEach((feature, featureIndex) => {
       const { uid, label, area_m2: area, [DUPLICATE_PROP]: isDuplicate } = feature.properties;
 
       const code = (feature.properties.code || '').trim();
-      const rawIndex = Number(uid.slice('shop-'.length));
       const item = {
         uid,
         area,
         merchantName: merchantNameOf(feature.properties),
         centroid: labelPoint(feature.geometry),
         codeText: code ? shortLabel(label) : null,
-        index: Number.isInteger(rawIndex) ? rawIndex + 1 : null,
+        index: featureIndex + 1,
       };
       const text = labelTextFor(item, showIndexRef.current);
       const el = document.createElement('div');
@@ -356,7 +362,7 @@ export default function FloorMapPreview({
         marker,
         ...labelSize(text, item.merchantName),
       });
-    }
+    });
 
     labelsRef.current = labels;
 
@@ -470,7 +476,11 @@ export default function FloorMapPreview({
     map.on('mouseout', onMouseOut);
     map.on('click', onClick);
 
-    const bounds = featureBounds(geojson.features);
+    const bounds = featureBounds(
+      floorGeojson?.features?.length
+        ? [...geojson.features, ...floorGeojson.features]
+        : geojson.features,
+    );
     const fit = (duration) => {
       const camera = map.cameraForBounds(bounds, {
         padding: { top: 48, right: 48, bottom: 48, left: 48 },
@@ -505,7 +515,7 @@ export default function FloorMapPreview({
       map.off('idle', updateLabels);
       removeData();
     };
-  }, [geojson, fitKey, mapReady]);
+  }, [geojson, floor, fitKey, mapReady]);
 
   useEffect(() => {
     activeUidRef.current = activeUid;

@@ -6,14 +6,10 @@ const { Text } = Typography;
 
 const text = (value) => (typeof value === "string" ? value.trim() : "");
 const codeOf = (feature) => feature.properties.code || "未编号";
-const indexOf = (feature) => {
-  const raw = Number(String(feature.properties.uid ?? "").slice("shop-".length));
-  return Number.isInteger(raw) ? raw + 1 : null;
-};
-const optionText = (feature) => {
+const optionText = (feature, ordinalByUid) => {
   if (text(feature.properties.code)) return codeOf(feature);
-  const index = indexOf(feature);
-  return index === null ? "未编号" : `未编号 #${index}`;
+  const ordinal = ordinalByUid.get(feature.properties.uid);
+  return ordinal ? `未编号 #${ordinal}` : "未编号";
 };
 const merchantNoOf = (feature) => text(feature.properties.merchantNo);
 const merchantNameOf = (feature) => text(feature.properties.merchantName);
@@ -106,8 +102,8 @@ function mergeMerchantInfo(newData, oldShops, pairs) {
   const raw = rawFeatures
     ? {
         ...newData.raw,
-        features: rawFeatures.map((feature, index) => {
-          const oldProps = oldByNewUid.get(`shop-${index}`);
+        features: rawFeatures.map((feature) => {
+          const oldProps = oldByNewUid.get(feature.properties?.uid);
           return oldProps
             ? {
                 ...feature,
@@ -140,6 +136,9 @@ export default function FloorGeoJsonCompare({
 
   const oldFeatures = oldShops?.features ?? [];
   const newFeatures = newData?.shops?.features ?? [];
+  const ordinalByUid = new Map(
+    newFeatures.map((feature, index) => [feature.properties.uid, index + 1]),
+  );
 
   const { matched, failedOld, newOnly, duplicatedOld, unnumberedOld } = useMemo(
     () => compareByCode(oldShops, newData?.shops),
@@ -172,7 +171,7 @@ export default function FloorGeoJsonCompare({
         const numbered = Boolean(text(feature.properties.code));
         return {
           value: feature.properties.uid,
-          label: `${optionText(feature)}${
+          label: `${optionText(feature, ordinalByUid)}${
             numbered ? "" : " · 将取旧铺位号"
           }`,
           feature,
@@ -293,7 +292,7 @@ export default function FloorGeoJsonCompare({
       title: "新铺位号",
       key: "code",
       ellipsis: true,
-      render: (_, feature) => optionText(feature),
+      render: (_, feature) => optionText(feature, ordinalByUid),
     },
   ];
 
@@ -433,7 +432,7 @@ export default function FloorGeoJsonCompare({
         locale={{ emptyText: "没有新增铺位" }}
       />
 
-      {unnumberedOld.length > 0 && (
+      {/* {unnumberedOld.length > 0 && (
         <>
           <Typography.Title
             level={5}
@@ -452,7 +451,7 @@ export default function FloorGeoJsonCompare({
             locale={{ emptyText: "没有未编号旧铺位" }}
           />
         </>
-      )}
+      )} */}
 
       <Space
         direction="vertical"

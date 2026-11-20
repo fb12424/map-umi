@@ -179,14 +179,14 @@ export default function FloorPreviewMap({ shops, floor }) {
   const hoveredRef = useRef(null);
   const selectedRef = useRef(null);
   const popupRef = useRef(null);
-  const is3DRef = useRef(true);
+  const is3DRef = useRef(false);
   const navGridRef = useRef(null);
   const navRef = useRef({ phase: 'idle', startUid: null, endUid: null });
   const navMarkersRef = useRef([]);
   const navApiRef = useRef(null);
   const navModeRef = useRef('click');
 
-  const [is3D, setIs3D] = useState(true);
+  const [is3D, setIs3D] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [stats, setStats] = useState(null);
   const [navStatus, setNavStatus] = useState('loading');
@@ -218,8 +218,8 @@ export default function FloorPreviewMap({ shops, floor }) {
       },
       center: [119.30015, 26.08005],
       zoom: 18.5,
-      pitch: PITCH_3D,
-      bearing: BEARING_3D,
+      pitch: 0,
+      bearing: 0,
       minZoom: 15,
       maxZoom: 22,
       maxPitch: 70,
