@@ -11,7 +11,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { DEFAULT_BUFFER_METERS } from "../../lib/floorGeometry.js";
 import { featureBounds, merchantNameOf } from "../../lib/geoCommon.js";
 import { buildNavGrid, findRoute } from "../../lib/routing.js";
-import { labelPoint, shortLabel } from "../../lib/shopGeometry.js";
+import { labelPoint } from "../../lib/shopGeometry.js";
 import {
   ALL_LAYERS,
   ALL_SOURCES,
@@ -337,7 +337,7 @@ export default function useGuideMap({ shops, floor }) {
       totalArea += area;
 
       const merchantName = merchantNameOf(feature.properties);
-      const text = shortLabel(label);
+      const text = label;
       const el = document.createElement("div");
       el.className = "fp-shop-label";
       renderLabel(el, text, merchantName);

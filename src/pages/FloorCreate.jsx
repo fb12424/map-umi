@@ -436,7 +436,7 @@ export default function FloorCreate() {
                   disabled={!canEditManually}
                   onClick={() => setEditorOpen(true)}
                 >
-                  手动编辑地图
+                  手动编辑商铺地图
                 </Button>
                 <Button type="link" onClick={() => history.push("/floors")}>
                   返回列表

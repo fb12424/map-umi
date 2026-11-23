@@ -1,3 +1,4 @@
+/* 全屏编辑覆盖层：盖住页面内容，避免编辑时误触底层页面 */
 .editor-overlay {
   position: fixed;
   inset: 0;
@@ -16,6 +17,7 @@
   inset: 0;
 }
 
+/* 左上角悬浮区：工具栏 + 统计卡叠在地图上方，宽度取视口与 700px 的较小值 */
 .editor-corner {
   position: absolute;
   top: 12px;
@@ -115,6 +117,7 @@
   background: #eff6ff;
 }
 
+/* 底部操作提示常驻显示；pointer-events: none 让它不拦截下面的绘制操作 */
 .editor-hint {
   position: absolute;
   left: 50%;
@@ -132,6 +135,7 @@
   pointer-events: none;
 }
 
+/* 吸附提示点：Marker 常驻，显隐由 JS 切换 is-visible（opacity 过渡） */
 .editor-snap {
   width: 12px;
   height: 12px;
@@ -147,6 +151,7 @@
   opacity: 1;
 }
 
+/* 位号标注：pointer-events: none 让点击穿透到铺位，不挡选中/绘制 */
 .editor-shop-label {
   padding: 1px 5px;
   border-radius: 4px;

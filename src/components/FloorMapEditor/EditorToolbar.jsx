@@ -1,6 +1,8 @@
 import { UndoOutlined } from "@ant-design/icons";
 import { Button, Popconfirm, Segmented, Space } from "antd";
 
+// 纯展示工具栏：按钮状态完全由 props 推导，所有动作通过回调上抛，
+// 不含任何编辑逻辑，方便单独调整布局与文案
 export default function EditorToolbar({
   tool,
   shape,
@@ -18,6 +20,7 @@ export default function EditorToolbar({
 }) {
   return (
     <div className="editor-toolbar">
+      {/* 第一行：撤销、编辑模式切换、整体取消/应用 */}
       <div className="editor-toolbar-row">
         <Button
           size="small"
@@ -54,6 +57,7 @@ export default function EditorToolbar({
         </Space>
       </div>
 
+      {/* 第二行：对选区生效的操作，disabled 条件即各操作的最低要求 */}
       <div className="editor-toolbar-row editor-toolbar-secondary">
         <span className="editor-toolbar-label">铺位操作</span>
         <Button
@@ -79,6 +83,7 @@ export default function EditorToolbar({
         >
           拆分所选{splittableCount ? `（${splittableCount}）` : ""}
         </Button>
+        {/* 删除会一次移除多个铺位且容易误点，用 Popconfirm 做二次确认 */}
         {selectionCount ? (
           <Popconfirm
             title={`删除选中的 ${selectionCount} 个铺位？`}
@@ -97,6 +102,7 @@ export default function EditorToolbar({
           </Button>
         )}
       </div>
+      {/* 第三行：绘制形状；线段仅裁切模式提供，新增铺位不需要线段 */}
       {tool !== "select" && (
         <div className="editor-toolbar-row editor-toolbar-secondary">
           <Segmented

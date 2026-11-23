@@ -1,6 +1,6 @@
 .preview-map-wrap {
   position: relative;
-  /* height: 560px; */
+  /* 铺满校验卡片剩余高度：100vh 减去顶部导航/卡片头部的预估高度 */
   height: calc(100vh - 178px);
   overflow: hidden;
   border-radius: 0 0 8px 8px;
@@ -12,6 +12,7 @@
   inset: 0;
 }
 
+/* 左上角统计卡：铺位总数 + 位号体检（正常/无位号/重复） */
 .preview-map-summary {
   position: absolute;
   top: 16px;
@@ -91,6 +92,7 @@
   background: #274a76;
 }
 
+/* 标注默认态：pointer-events 关闭，避免 Marker 挡住底下的铺位点击 */
 .shop-label {
   pointer-events: none;
   user-select: none;
@@ -133,6 +135,7 @@
   opacity: 0.72;
 }
 
+/* 状态样式：is-duplicate 重复位号 / is-active hover / is-linked 表格联动 */
 .shop-label.is-active {
   border-color: transparent;
   background: #f97316;

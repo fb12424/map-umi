@@ -96,10 +96,6 @@ export function labelPoint(geometry) {
   return fallback;
 }
 
-export function shortLabel(label) {
-  return label.startsWith('1F-') ? label.slice(3) : label;
-}
-
 export function labelWidth(text) {
   let width = 0;
   for (const char of text) {
