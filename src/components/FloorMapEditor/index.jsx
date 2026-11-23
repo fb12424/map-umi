@@ -199,11 +199,12 @@ export default function FloorMapEditor({
               </span>
             </div>
           </div>
-        </div>
 
-        {/* 底部操作提示常驻显示；pointer-events 在 CSS 里关掉，不会挡住绘制 */}
-        <div className="editor-hint">{hint}</div>
+          {/* 底部操作提示常驻显示；pointer-events 在 CSS 里关掉，不会挡住绘制 */}
+          <div className="editor-hint">{hint}</div>
+        </div>
       </div>
     </div>
   );
 }
+

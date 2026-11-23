@@ -68,11 +68,7 @@ export default function EditorToolbar({
         >
           裁切所选
         </Button>
-        <Button
-          size="small"
-          disabled={selectionCount < 2}
-          onClick={onMerge}
-        >
+        <Button size="small" disabled={selectionCount < 2} onClick={onMerge}>
           合并所选
         </Button>
         <Button
@@ -110,9 +106,7 @@ export default function EditorToolbar({
             value={shape}
             onChange={onShapeChange}
             options={[
-              ...(tool === "crop"
-                ? [{ label: "线段", value: "line" }]
-                : []),
+              ...(tool === "crop" ? [{ label: "线段", value: "line" }] : []),
               { label: "矩形", value: "rect" },
               { label: "椭圆", value: "ellipse" },
               { label: "多边形", value: "polygon" },
@@ -123,3 +117,4 @@ export default function EditorToolbar({
     </div>
   );
 }
+

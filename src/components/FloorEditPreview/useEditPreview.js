@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  AttributionControl,
+  // AttributionControl,
   Map as MapLibreMap,
   Marker,
   NavigationControl,
@@ -108,13 +108,13 @@ export default function useEditPreview({
       new NavigationControl({ showCompass: false }),
       "top-right",
     );
-    map.addControl(
-      new AttributionControl({
-        compact: true,
-        customAttribution: "数据：本地上传 · WGS84",
-      }),
-      "bottom-right",
-    );
+    // map.addControl(
+    //   new AttributionControl({
+    //     compact: true,
+    //     customAttribution: "数据：本地上传 · WGS84",
+    //   }),
+    //   "bottom-right",
+    // );
 
     // isStyleLoaded 兜底 StrictMode/HMR 二次挂载时 load 已经触发、事件不会再来一遍的情况
     if (map.isStyleLoaded()) {

@@ -4,7 +4,7 @@
 // 避免每次 props 变化都解绑重绑全部地图事件。
 import { useEffect, useRef, useState } from "react";
 import {
-  AttributionControl,
+  // AttributionControl,
   Map as MapLibreMap,
   Marker,
   NavigationControl,
@@ -110,14 +110,14 @@ export default function useEditorMap({
     const line =
       ring ??
       (cursor && points.length ? [...points, cursor] : points).map(toXy);
-    if (line.length >= 2) {
+    if (line.length >= 2) { // 画线
       features.push({
         type: "Feature",
         properties: { kind: "line" },
         geometry: { type: "LineString", coordinates: line },
       });
     }
-    if (ring && ring.length >= 4) {
+    if (ring && ring.length >= 4) { // 画面
       features.push({
         type: "Feature",
         properties: { kind: "fill" },
@@ -127,7 +127,7 @@ export default function useEditorMap({
 
     // 顶点圆点：拖拽时只有起止两个控制点，其余情况是已确定的多边形/线段端点
     const vertices = dragging ? [start, cursor].filter(Boolean) : points;
-    for (const point of vertices) {
+    for (const point of vertices) { // 画顶点
       features.push({
         type: "Feature",
         properties: { kind: "point" },
@@ -307,6 +307,7 @@ export default function useEditorMap({
     if (draft.points.length >= 3) {
       const first = map.project(draft.points[0]);
       const current = map.project(point);
+      // 多边形当前光标结束点与起始点距离小于8时，表示已手动闭合，跳出草稿，直接输出图形
       if (Math.hypot(first.x - current.x, first.y - current.y) <= SNAP_PIXELS) {
         finishPolygon();
         return;
@@ -392,13 +393,13 @@ export default function useEditorMap({
 
     mapRef.current = map;
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
-    map.addControl(
-      new AttributionControl({
-        compact: true,
-        customAttribution: "数据：本地上传 · WGS84",
-      }),
-      "bottom-right",
-    );
+    // map.addControl(
+    //   new AttributionControl({
+    //     compact: true,
+    //     customAttribution: "数据：本地上传 · WGS84",
+    //   }),
+    //   "bottom-right",
+    // );
 
     // 位号标注用 DOM Marker 渲染（方便控制样式），空位号不画。
     // 标注不接收鼠标事件，点击会穿透到下方铺位
