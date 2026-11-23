@@ -30,7 +30,6 @@ module.exports = {
         { path: '/floors/new', component: '@/pages/FloorCreate' },
         { path: '/floors/:floorId/edit', component: '@/pages/FloorCreate' },
         { path: '/floors/:floorId/preview', component: '@/pages/FloorPreview' },
-        { path: '/floors/:floorId', component: '@/pages/FloorDetail' },
         { path: '*', redirect: '/floors' },
       ],
     },

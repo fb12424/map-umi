@@ -13,8 +13,7 @@ export default function BasicLayout({ children }) {
     <Layout className="app-shell">
       <Header className="app-header">
         <div className="app-brand">
-          东百仓山店
-          <span>地图管理后台</span>
+          地图管理后台DEMO
         </div>
         <Menu
           className="app-menu"

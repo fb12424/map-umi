@@ -1,6 +1,7 @@
 .preview-map-wrap {
   position: relative;
-  height: 560px;
+  /* height: 560px; */
+  height: calc(100vh - 178px);
   overflow: hidden;
   border-radius: 0 0 8px 8px;
   background: #eef1f6;
@@ -151,8 +152,8 @@
   pointer-events: none;
 }
 
-@media (max-width: 720px) {
+/* @media (max-width: 720px) {
   .preview-map-wrap {
     height: 420px;
   }
-}
+} */

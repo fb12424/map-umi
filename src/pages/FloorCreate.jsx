@@ -356,7 +356,7 @@ export default function FloorCreate() {
               />
             )}
 
-            <Divider
+            {/* <Divider
               orientation="left"
               plain
               style={{ margin: "24px 0 16px" }}
@@ -366,7 +366,7 @@ export default function FloorCreate() {
             <FloorOutlineUpload
               value={outlineUpload}
               onChange={setOutlineUpload}
-            />
+            /> */}
 
             <Form
               form={form}

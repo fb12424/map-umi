@@ -2,7 +2,8 @@ import { buffer as turfBuffer } from '@turf/buffer';
 import { union as turfUnion } from '@turf/union';
 import { assertWgs84 } from './shopGeometry.js';
 
-export const DEFAULT_BUFFER_METERS = 4;
+export const DEFAULT_BUFFER_METERS = 5;
+const DEFAULT_WALL_MARGIN_METERS = 0.5;
 const BUFFER_STEPS = 8;
 const DEFAULT_SIMPLIFY_TOLERANCE_METERS = 1;
 const METERS_PER_DEGREE_LAT = 110540;
@@ -184,6 +185,8 @@ export function normalizeOutlineGeoJson(raw) {
 
 export function deriveFloorFromShops(features, options = {}) {
   const bufferMeters = options.bufferMeters ?? DEFAULT_BUFFER_METERS;
+  const wallMarginMeters =
+    options.wallMarginMeters ?? DEFAULT_WALL_MARGIN_METERS;
   const simplifyToleranceMeters =
     options.simplifyToleranceMeters ?? DEFAULT_SIMPLIFY_TOLERANCE_METERS;
   const polygons = [];
@@ -196,11 +199,27 @@ export function deriveFloorFromShops(features, options = {}) {
       : turfUnion({ type: 'FeatureCollection', features: polygons });
   if (!merged) return null;
 
-  const buffered = turfBuffer(merged, bufferMeters, {
+  // 闭运算：外扩黏连缝隙（≤2×bufferMeters），再等量内缩让外边界回到最外侧商铺外缘
+  const dilated = turfBuffer(merged, bufferMeters, {
     units: 'meters',
     steps: BUFFER_STEPS,
   });
-  if (!buffered) return null;
+  if (!dilated) return null;
+
+  const closed = turfBuffer(dilated, -bufferMeters, {
+    units: 'meters',
+    steps: BUFFER_STEPS,
+  });
+  if (!closed) return null;
+
+  const withWall =
+    wallMarginMeters > 0
+      ? turfBuffer(closed, wallMarginMeters, {
+          units: 'meters',
+          steps: BUFFER_STEPS,
+        })
+      : closed;
+  if (!withWall) return null;
 
   return {
     type: 'FeatureCollection',
@@ -209,7 +228,7 @@ export function deriveFloorFromShops(features, options = {}) {
         type: 'Feature',
         properties: {},
         geometry: simplifyOutlineGeometry(
-          outlineOnly(buffered.geometry),
+          outlineOnly(withWall.geometry),
           simplifyToleranceMeters,
         ),
       },

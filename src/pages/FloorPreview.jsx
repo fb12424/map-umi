@@ -106,12 +106,11 @@ export default function FloorPreview() {
           <p>楼层地图只读预览 · 支持铺位间导航</p>
         </div>
         <Space>
-          <Tag>只读</Tag>
           <Button onClick={() => history.push('/floors')}>返回列表</Button>
         </Space>
       </div>
 
-      <Card className="floor-preview-card">
+      <Card className="floor-preview-card" >
         {shops?.features?.length ? (
           <FloorGuideMap shops={shops} floor={outline} />
         ) : (

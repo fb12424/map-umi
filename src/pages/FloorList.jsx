@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import {
   Button,
   Card,
@@ -8,12 +8,12 @@ import {
   Table,
   Typography,
   message,
-} from 'antd';
-import { history } from 'umi';
-import { deleteMap, listMaps } from '../services/maps.js';
+} from "antd";
+import { history } from "umi";
+import { deleteMap, listMaps } from "../services/maps.js";
 
 const formatTime = (value) =>
-  value ? new Date(value).toLocaleString('zh-CN', { hour12: false }) : '—';
+  value ? new Date(value).toLocaleString("zh-CN", { hour12: false }) : "—";
 
 export default function FloorList() {
   const [floors, setFloors] = useState([]);
@@ -24,7 +24,7 @@ export default function FloorList() {
     try {
       setFloors(await listMaps());
     } catch (error) {
-      message.error(error.message || '楼层加载失败');
+      message.error(error.message || "楼层加载失败");
     } finally {
       setLoading(false);
     }
@@ -40,23 +40,23 @@ export default function FloorList() {
       message.success(`已删除「${record.name}」`);
       await load();
     } catch (error) {
-      message.error(error.message || '删除失败');
+      message.error(error.message || "删除失败");
     }
   };
 
   const columns = [
     {
-      title: '楼层编号',
-      dataIndex: 'floorCode',
+      title: "楼层编号",
+      dataIndex: "floorCode",
       width: 120,
     },
     {
-      title: '楼层名称',
-      dataIndex: 'name',
+      title: "楼层名称",
+      dataIndex: "name",
     },
     {
-      title: '铺位数量',
-      dataIndex: 'unitCount',
+      title: "铺位数量",
+      dataIndex: "unitCount",
       width: 110,
       render: (value) =>
         value === null || value === undefined ? (
@@ -66,8 +66,8 @@ export default function FloorList() {
         ),
     },
     {
-      title: '已绑定商铺',
-      dataIndex: 'shopCount',
+      title: "已绑定商铺",
+      dataIndex: "shopCount",
       width: 120,
       render: (value) =>
         value === null || value === undefined ? (
@@ -77,20 +77,20 @@ export default function FloorList() {
         ),
     },
     {
-      title: '版本',
-      dataIndex: 'version',
+      title: "版本",
+      dataIndex: "version",
       width: 80,
       render: (value) => `v${value}`,
     },
     {
-      title: '更新时间',
-      dataIndex: 'updatedAt',
+      title: "更新时间",
+      dataIndex: "updatedAt",
       width: 190,
       render: formatTime,
     },
     {
-      title: '操作',
-      key: 'actions',
+      title: "操作",
+      key: "actions",
       width: 180,
       render: (_, record) => (
         <Space size={4}>
@@ -101,7 +101,11 @@ export default function FloorList() {
           >
             预览
           </Button>
-          <Button type="link" size="small" onClick={() => history.push(`/floors/${record.id}/edit`)}>
+          <Button
+            type="link"
+            size="small"
+            onClick={() => history.push(`/floors/${record.id}/edit`)}
+          >
             编辑
           </Button>
           <Popconfirm
@@ -122,17 +126,14 @@ export default function FloorList() {
 
   return (
     <div className="page-stack">
-      <div className="page-head">
-        <div>
-          <h1>楼层列表</h1>
-          <p>楼层数据来自新增时上传的 GeoJSON，商铺在楼层详情中维护。</p>
-        </div>
-        <Button type="primary" onClick={() => history.push('/floors/new')}>
-          新增楼层
-        </Button>
-      </div>
-
-      <Card>
+      <Card
+        title={"楼层列表"}
+        extra={
+          <Button type="primary" onClick={() => history.push("/floors/new")}>
+            新增楼层
+          </Button>
+        }
+      >
         <Table
           rowKey="id"
           columns={columns}
@@ -152,3 +153,4 @@ export default function FloorList() {
     </div>
   );
 }
+

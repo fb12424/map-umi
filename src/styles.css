@@ -119,14 +119,3 @@ body {
   min-height: 0;
 }
 
-.create-layout .preview-map-wrap {
-  flex: 1;
-  height: auto;
-  min-height: 520px;
-}
-
-@media (max-width: 720px) {
-  .create-layout .preview-map-wrap {
-    min-height: 420px;
-  }
-}
