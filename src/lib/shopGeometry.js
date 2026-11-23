@@ -42,7 +42,7 @@ function pointInRing(point, ring) {
   return inside;
 }
 
-function pointInPolygon(point, polygon) {
+export function pointInPolygon(point, polygon) {
   if (!pointInRing(point, polygon[0])) return false;
   for (let i = 1; i < polygon.length; i += 1) {
     if (pointInRing(point, polygon[i])) return false;

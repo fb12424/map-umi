@@ -36,6 +36,7 @@ export default function useEditorMap({
   shape,
   floor,
   onFinishShape,
+  onFinishLine,
   onPick,
   onSwitchToSelect,
   onClearSelection,
@@ -56,6 +57,7 @@ export default function useEditorMap({
   const selectedStateRef = useRef([]);
 
   const onFinishShapeRef = useRef(onFinishShape);
+  const onFinishLineRef = useRef(onFinishLine);
   const onPickRef = useRef(onPick);
   const onSwitchToSelectRef = useRef(onSwitchToSelect);
   const onClearSelectionRef = useRef(onClearSelection);
@@ -64,6 +66,7 @@ export default function useEditorMap({
   toolRef.current = tool;
   shapeRef.current = shape;
   onFinishShapeRef.current = onFinishShape;
+  onFinishLineRef.current = onFinishLine;
   onPickRef.current = onPick;
   onSwitchToSelectRef.current = onSwitchToSelect;
   onClearSelectionRef.current = onClearSelection;
@@ -282,6 +285,45 @@ export default function useEditorMap({
     renderDraft();
   };
 
+  const finishLine = () => {
+    const [start, end] = draftRef.current.points;
+    draftRef.current = { ...EMPTY_DRAFT };
+    setDrawing(false);
+    updateSnapMarker(null);
+    renderDraft();
+
+    onFinishLineRef.current(start, end);
+  };
+
+  const addLinePoint = (lngLat) => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const snapped = snapAt(map.project(lngLat));
+    const point = snapped?.lngLat ?? lngLat;
+    const draft = draftRef.current;
+
+    if (!draft.points.length) {
+      draftRef.current = { ...draft, points: [point], cursor: point };
+      setDrawing(true);
+      renderDraft();
+      return;
+    }
+
+    const first = map.project(draft.points[0]);
+    const current = map.project(point);
+    if (Math.hypot(first.x - current.x, first.y - current.y) <= SNAP_PIXELS) {
+      return;
+    }
+
+    draftRef.current = {
+      ...draft,
+      points: [draft.points[0], point],
+      cursor: point,
+    };
+    finishLine();
+  };
+
   useEffect(() => {
     const map = new MapLibreMap({
       container: containerRef.current,
@@ -491,6 +533,7 @@ export default function useEditorMap({
       }
 
       if (shapeRef.current === "polygon") addPolygonVertex(event.lngLat);
+      else if (shapeRef.current === "line") addLinePoint(event.lngLat);
     };
 
     const onMouseDown = (event) => {
@@ -635,7 +678,11 @@ export default function useEditorMap({
         return;
       }
 
-      if (event.key === "Enter" && draftRef.current.points.length) {
+      if (
+        event.key === "Enter" &&
+        shapeRef.current === "polygon" &&
+        draftRef.current.points.length
+      ) {
         event.preventDefault();
         finishPolygon();
         return;
@@ -646,10 +693,9 @@ export default function useEditorMap({
         draftRef.current.points.length
       ) {
         event.preventDefault();
-        draftRef.current = {
-          ...draftRef.current,
-          points: draftRef.current.points.slice(0, -1),
-        };
+        const nextPoints = draftRef.current.points.slice(0, -1);
+        draftRef.current = { ...draftRef.current, points: nextPoints };
+        if (!nextPoints.length) setDrawing(false);
         renderDraft();
       }
     };

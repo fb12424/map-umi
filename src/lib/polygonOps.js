@@ -1,10 +1,13 @@
-import { difference, union } from 'polyclip-ts';
+import { difference, intersection, union } from 'polyclip-ts';
+import { pointInPolygon } from './shopGeometry.js';
 
 const EARTH_RADIUS = 6378137;
 const RAD = Math.PI / 180;
 
 export const MIN_SLIVER_M2 = 0.2;
 const MIN_AREA_CHANGE_M2 = 0.01;
+const METERS_PER_DEG_LAT = 111320;
+const ON_BOUNDARY_TOLERANCE_M = 0.1;
 
 function ringAreaM2(ring) {
   if (!ring || ring.length < 3) return 0;
@@ -90,6 +93,100 @@ export function subtractPolygons(polygons, clipPolygons) {
   if (!clip.length) return subject;
 
   return difference(toGeom(subject), toGeom(clip));
+}
+
+export function intersectPolygons(polygons, clipPolygons) {
+  const subject = asPolygons(polygons).filter((polygon) => polygon?.length);
+  const clip = asPolygons(clipPolygons).filter((polygon) => polygon?.length);
+
+  if (!subject.length || !clip.length) return [];
+
+  return intersection(toGeom(subject), toGeom(clip));
+}
+
+export function pointInPolygons(point, polygons) {
+  return asPolygons(polygons).some((polygon) => pointInPolygon(point, polygon));
+}
+
+export function pointOnBoundary(point, polygons, toleranceM = ON_BOUNDARY_TOLERANCE_M) {
+  const [px, py] = point;
+  const scaleX = METERS_PER_DEG_LAT * Math.cos((py * Math.PI) / 180);
+
+  for (const polygon of asPolygons(polygons)) {
+    for (const ring of polygon) {
+      if (!ring) continue;
+      for (let i = 0; i < ring.length; i += 1) {
+        const [ax, ay] = ring[i];
+        const [bx, by] = ring[(i + 1) % ring.length];
+        const abx = (bx - ax) * scaleX;
+        const aby = (by - ay) * METERS_PER_DEG_LAT;
+        const apx = (px - ax) * scaleX;
+        const apy = (py - ay) * METERS_PER_DEG_LAT;
+        const lengthSq = abx * abx + aby * aby;
+        if (!lengthSq) continue;
+
+        const t = Math.max(0, Math.min(1, (apx * abx + apy * aby) / lengthSq));
+        if (Math.hypot(apx - abx * t, apy - aby * t) <= toleranceM) return true;
+      }
+    }
+  }
+  return false;
+}
+
+export function splitPolygonsByLine(polygons, start, end) {
+  const dx = end[0] - start[0];
+  const dy = end[1] - start[1];
+  const length = Math.hypot(dx, dy);
+  if (!length) return null;
+
+  const list = asPolygons(polygons).filter((polygon) => polygon?.length);
+  if (!list.length) return null;
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const polygon of list) {
+    for (const ring of polygon) {
+      for (const [x, y] of ring) {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  const margin = Math.max(maxX - minX, maxY - minY, 1e-9) * 2;
+  const ux = dx / length;
+  const uy = dy / length;
+  const nx = -uy;
+  const ny = ux;
+
+  const ax = start[0] - ux * margin;
+  const ay = start[1] - uy * margin;
+  const bx = end[0] + ux * margin;
+  const by = end[1] + uy * margin;
+
+  const halfA = [
+    [ax, ay],
+    [bx, by],
+    [bx + nx * margin, by + ny * margin],
+    [ax + nx * margin, ay + ny * margin],
+    [ax, ay],
+  ];
+  const halfB = [
+    [ax, ay],
+    [bx, by],
+    [bx - nx * margin, by - ny * margin],
+    [ax - nx * margin, ay - ny * margin],
+    [ax, ay],
+  ];
+
+  const pieceA = cleanPolygons(intersectPolygons(list, [halfA]));
+  const pieceB = cleanPolygons(intersectPolygons(list, [halfB]));
+  if (!pieceA.length || !pieceB.length) return null;
+  return [pieceA, pieceB];
 }
 
 export function areaChanged(beforeM2, afterM2) {

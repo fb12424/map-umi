@@ -39,6 +39,12 @@ export default function FloorMapEditor({
     else if (tool === "add") ops.applyAdd(polygon);
   };
 
+  const finishLine = (start, end) => {
+    if (tool === "crop") {
+      ops.applyLineCut([start.lng, start.lat], [end.lng, end.lat]);
+    }
+  };
+
   const pick = (uid) => {
     const current = selection;
     const next = uid
@@ -59,6 +65,7 @@ export default function FloorMapEditor({
     shape,
     floor,
     onFinishShape: finishShape,
+    onFinishLine: finishLine,
     onPick: pick,
     onSwitchToSelect: switchToSelect,
     onClearSelection: clearSelection,
@@ -70,6 +77,7 @@ export default function FloorMapEditor({
         type: "select",
         selection: [],
       });
+      if (shape === "line") setShape("rect");
     }
     clearDraft();
     setTool(next);
@@ -110,12 +118,16 @@ export default function FloorMapEditor({
   ).length;
 
   const hint = drawing
-    ? "双击或回车闭合多边形 · Backspace 撤销上一点 · Esc 取消"
+    ? shape === "polygon"
+      ? "双击或回车闭合多边形 · Backspace 撤销上一点 · Esc 取消"
+      : "点击第二点完成切割线 · Backspace 撤销起点 · Esc 取消"
     : tool === "select"
     ? "点击铺位选中或取消，可多选；点击空白处清空选择。"
     : tool === "crop"
     ? selection.length
-      ? "拖拽矩形/椭圆或依次点击绘制多边形，圈中部分将从所选铺位中裁掉。"
+      ? shape === "line"
+        ? "依次点击铺位边缘上的两个点绘制切割线，将所选铺位一分为二。"
+        : "拖拽矩形/椭圆、依次点击绘制多边形或线段；圈中部分将被裁掉，线段可将铺位一分为二。"
       : "请先在“选择”模式下选中要裁切的铺位。"
     : "拖拽矩形/椭圆或依次点击绘制多边形，生成新铺位；与已有铺位重叠的部分会自动扣除。";
 

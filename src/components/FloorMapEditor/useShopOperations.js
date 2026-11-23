@@ -6,11 +6,15 @@ import {
   createShopFeature,
   geometryToPolygons,
   nextShopUid,
+  pointInPolygons,
+  pointOnBoundary,
   polygonsAreaM2,
+  splitPolygonsByLine,
   subtractPolygons,
   unionPolygons,
   updateShopGeometry,
 } from "../../lib/polygonOps.js";
+import { labelPoint } from "../../lib/shopGeometry.js";
 import { ADD_MIN_FREE_M2, ADD_MIN_FREE_RATIO } from "./editorCore.js";
 
 export default function useShopOperations({ dispatch, shops, selection }) {
@@ -124,6 +128,79 @@ export default function useShopOperations({ dispatch, shops, selection }) {
     message.success("已新增 1 个铺位");
   };
 
+  const applyLineCut = (start, end) => {
+    const selected = new Set(selectionRef.current);
+    if (!selected.size) {
+      message.warning("请先在“选择”模式下选中要切割的铺位");
+      return;
+    }
+
+    const targets = shopsRef.current.features.filter((feature) =>
+      selected.has(feature.properties.uid),
+    );
+    const boundaries = targets.flatMap((feature) =>
+      geometryToPolygons(feature.geometry),
+    );
+    if (
+      !pointOnBoundary(start, boundaries) ||
+      !pointOnBoundary(end, boundaries)
+    ) {
+      message.warning("线段的起止点必须落在所选铺位的边缘上");
+      return;
+    }
+
+    const uidPool = [...shopsRef.current.features];
+    const nextFeatures = [];
+    const nextSelection = [];
+    let splitCount = 0;
+
+    for (const feature of shopsRef.current.features) {
+      if (!selected.has(feature.properties.uid)) {
+        nextFeatures.push(feature);
+        continue;
+      }
+
+      const halves = splitPolygonsByLine(
+        geometryToPolygons(feature.geometry),
+        start,
+        end,
+      );
+      if (!halves) {
+        nextFeatures.push(feature);
+        continue;
+      }
+
+      const keepUid = feature.properties.uid;
+      const label = labelPoint(feature.geometry);
+      const keep = pointInPolygons(label, halves[0]) ? halves[0] : halves[1];
+      const created = keep === halves[0] ? halves[1] : halves[0];
+
+      nextFeatures.push(updateShopGeometry(feature, keep));
+      const part = createShopFeature(created, {
+        uid: nextShopUid(uidPool),
+        code: "",
+        merchantNo: "",
+        merchantName: "",
+      });
+      uidPool.push(part);
+      nextFeatures.push(part);
+      nextSelection.push(keepUid, part.properties.uid);
+      splitCount += 1;
+    }
+
+    if (!splitCount) {
+      message.warning("切割线未穿过任何所选铺位，未进行切割");
+      return;
+    }
+
+    dispatch({
+      type: "commit",
+      shops: { type: "FeatureCollection", features: nextFeatures },
+      selection: nextSelection,
+    });
+    message.success(`已将 ${splitCount} 个铺位一分为二`);
+  };
+
   const handleMerge = () => {
     const selected = new Set(selectionRef.current);
     const picked = shopsRef.current.features.filter((feature) =>
@@ -235,5 +312,12 @@ export default function useShopOperations({ dispatch, shops, selection }) {
     message.success(`已删除 ${removed} 个铺位`);
   };
 
-  return { applyCrop, applyAdd, handleMerge, handleSplit, handleDelete };
+  return {
+    applyCrop,
+    applyAdd,
+    applyLineCut,
+    handleMerge,
+    handleSplit,
+    handleDelete,
+  };
 }

@@ -104,6 +104,9 @@ export default function EditorToolbar({
             value={shape}
             onChange={onShapeChange}
             options={[
+              ...(tool === "crop"
+                ? [{ label: "线段", value: "line" }]
+                : []),
               { label: "矩形", value: "rect" },
               { label: "椭圆", value: "ellipse" },
               { label: "多边形", value: "polygon" },

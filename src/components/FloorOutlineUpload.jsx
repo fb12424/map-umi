@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Alert, Button, Upload, message } from "antd";
 import { normalizeOutlineGeoJson } from "../lib/floorGeometry.js";
+import { UploadOutlined } from '@ant-design/icons';
 
 const { Dragger } = Upload;
 
@@ -43,7 +44,7 @@ export default function FloorOutlineUpload({ value, onChange }) {
 
   return (
     <>
-      <Dragger
+      <Upload
         accept=".geojson,.json,application/geo+json,application/json"
         maxCount={1}
         multiple={false}
@@ -52,10 +53,8 @@ export default function FloorOutlineUpload({ value, onChange }) {
         onChange={handleFile}
         disabled={parsing}
       >
-        <p className="ant-upload-text">
-          {parsing ? "正在解析轮廓…" : "点击或拖拽轮廓 GeoJSON 到此处"}
-        </p>
-      </Dragger>
+        <Button icon={<UploadOutlined />}>{parsing ? "正在解析 正在解析轮廓…" : "上传 轮廓GeoJSON 地图文件"}</Button>
+      </Upload>
 
       {value && (
         <Alert
