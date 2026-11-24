@@ -1,0 +1,25 @@
+.floorPreviewPage {
+  height: calc(100vh - 112px);
+  min-height: 600px;
+}
+
+.floorPreviewCard {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+
+  > :global(.ant-card-body) {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    padding: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .floorPreviewPage {
+    height: auto;
+    min-height: 0;
+  }
+}

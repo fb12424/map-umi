@@ -1,0 +1,104 @@
+// 商铺/设施地图标注（DOM Marker）共用样式：编辑器 / 编辑预览 / 导览图三处共用。
+// 状态类由各组件通过 styles 切换，默认无状态。
+
+.shopLabel {
+  pointer-events: none;
+  user-select: none;
+  padding: 1px 5px;
+  border: 1px solid rgba(30, 58, 95, 0.18);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #1e293b;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
+  transition: background 0.12s ease, color 0.12s ease;
+
+  // 有商户名时位号 + 商户名竖排两行
+  &.hasMerchant {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1px 6px;
+    text-align: center;
+  }
+
+  // 设施标注：24px 圆形图标徽标，只显示图标
+  &.iconOnly {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: #16a34a;
+    color: #fff;
+    font-size: 16px;
+    line-height: 24px;
+  }
+
+  // 编辑预览：重复位号
+  &.isDuplicate {
+    border-color: rgba(220, 38, 38, 0.5);
+    background: #fef2f2;
+    color: #b91c1c;
+  }
+
+  // 导览图：导航端点 / hover 高亮
+  &.isActive {
+    border-color: transparent;
+    background: #f97316;
+    color: #fff;
+  }
+
+  &.isStart {
+    border-color: transparent;
+    background: #16a34a;
+    color: #fff;
+  }
+
+  &.isEnd {
+    border-color: transparent;
+    background: #dc2626;
+    color: #fff;
+  }
+
+  &.isLinked {
+    border-color: transparent;
+    background: #0ea5e9;
+    color: #fff;
+    box-shadow:
+      0 0 0 2px rgba(14, 165, 233, 0.4),
+      0 2px 8px rgba(15, 23, 42, 0.28);
+  }
+
+  &.isStart .shopLabelMerchant,
+  &.isEnd .shopLabelMerchant,
+  &.isActive .shopLabelMerchant {
+    opacity: 0.9;
+  }
+}
+
+.shopLabelCode {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.shopLabelIcon {
+  flex: none;
+}
+
+.shopLabelMerchant {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0;
+  opacity: 0.72;
+}

@@ -5,6 +5,8 @@ import FloorGuideMap from '../components/FloorGuideMap/index.jsx';
 import { deriveFloorFromShops } from '../lib/floorGeometry.js';
 import { normalizeShopData } from '../lib/shopGeometry.js';
 import { getMap, getMapGeoJson, getMapOutline } from '../services/maps.js';
+import pageStyles from '../styles/page.less';
+import styles from './FloorPreview.less';
 
 function isValidOutline(value) {
   return (
@@ -70,7 +72,7 @@ export default function FloorPreview() {
 
   if (loading) {
     return (
-      <div className="page-stack">
+      <div className={pageStyles.pageStack}>
         <Card loading />
       </div>
     );
@@ -96,8 +98,8 @@ export default function FloorPreview() {
   }
 
   return (
-    <div className="page-stack floor-preview-page">
-      <div className="page-head">
+    <div className={`${pageStyles.pageStack} ${styles.floorPreviewPage}`}>
+      <div className={pageStyles.pageHead}>
         <div>
           <h1>
             {floor.name}{' '}
@@ -110,7 +112,7 @@ export default function FloorPreview() {
         </Space>
       </div>
 
-      <Card className="floor-preview-card" >
+      <Card className={styles.floorPreviewCard} >
         {shops?.features?.length ? (
           <FloorGuideMap shops={shops} floor={outline} />
         ) : (

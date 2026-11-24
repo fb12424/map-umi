@@ -3,7 +3,7 @@ import { merchantNameOf } from "../../lib/geoCommon.js";
 import { AREA_TYPE, areaTypeOf } from "../../lib/shopGeometry.js";
 import { isMerchantLinked, merchantNoOf } from "./previewCore.js";
 import useGuideMap from "./useGuideMap.js";
-import "./FloorGuideMap.css";
+import styles from "./FloorGuideMap.less";
 
 export default function FloorGuideMap({ shops, floor }) {
   const {
@@ -51,8 +51,8 @@ export default function FloorGuideMap({ shops, floor }) {
       .map(({ uid, text }) => ({ value: uid, label: text }));
 
   return (
-    <div className="fp-map-wrap">
-      <div ref={containerRef} className="fp-map" />
+    <div className={styles.fpMapWrap}>
+      <div ref={containerRef} className={styles.fpMap} />
 
       <NavPanel
         panelRef={panelRef}

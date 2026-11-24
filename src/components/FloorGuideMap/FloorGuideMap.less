@@ -1,40 +1,20 @@
-.floor-preview-page {
-  height: calc(100vh - 112px);
-  min-height: 600px;
-}
-
-.floor-preview-card {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.floor-preview-card > .ant-card-body {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  padding: 0;
-}
-
-.floor-preview-card .fp-map-wrap {
-  border-radius: 0 0 8px 8px;
-}
-
-.fp-map-wrap {
+.fpMapWrap {
   position: relative;
   flex: 1;
   min-height: 520px;
   overflow: hidden;
+  border-radius: 0 0 8px 8px;
   background: #eef1f6;
+
+  // 嵌套一层：MapLibre 会给容器加 .maplibregl-map（position: relative），
+  // 同权重下会被后注入的第三方样式覆盖
+  .fpMap {
+    position: absolute;
+    inset: 0;
+  }
 }
 
-.fp-map {
-  position: absolute;
-  inset: 0;
-}
-
-.fp-panel {
+.fpPanel {
   position: absolute;
   top: 16px;
   left: 16px;
@@ -50,33 +30,33 @@
   backdrop-filter: blur(14px);
 }
 
-.fp-eyebrow {
+.fpEyebrow {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.14em;
   color: #64748b;
 }
 
-.fp-summary {
+.fpSummary {
   margin: 8px 0 0;
   font-size: 13px;
   line-height: 1.6;
   color: #475569;
+
+  strong {
+    color: #0f172a;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
 }
 
-.fp-summary strong {
-  color: #0f172a;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-}
-
-.fp-nav {
+.fpNav {
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px dashed rgba(15, 23, 42, 0.14);
 }
 
-.fp-nav-heading {
+.fpNavHeading {
   margin-bottom: 8px;
   font-size: 11px;
   font-weight: 600;
@@ -84,7 +64,7 @@
   color: #64748b;
 }
 
-.fp-nav-button {
+.fpNavButton {
   width: 100%;
   padding: 8px 14px;
   border: 0;
@@ -96,40 +76,40 @@
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s ease, transform 0.1s ease;
+
+  &:hover:not(:disabled) {
+    background: #115e59;
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
 }
 
-.fp-nav-button:hover:not(:disabled) {
-  background: #115e59;
-}
-
-.fp-nav-button:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-.fp-nav-button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.fp-nav-pick {
+.fpNavPick {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
 
-.fp-nav-status {
+.fpNavStatus {
   font-size: 12px;
   line-height: 1.5;
   color: #334155;
+
+  strong {
+    color: #0f172a;
+    font-weight: 650;
+  }
 }
 
-.fp-nav-status strong {
-  color: #0f172a;
-  font-weight: 650;
-}
-
-.fp-nav-secondary {
+.fpNavSecondary {
   flex: none;
   padding: 7px 12px;
   border: 1px solid rgba(15, 23, 42, 0.16);
@@ -140,59 +120,59 @@
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+
+  &:hover {
+    background: #f8fafc;
+  }
 }
 
-.fp-nav-secondary:hover {
-  background: #f8fafc;
-}
-
-.fp-nav-select {
+.fpNavSelect {
   display: flex;
   flex-direction: column;
   gap: 8px;
+
+  :global(.ant-select) {
+    width: 100%;
+  }
 }
 
-.fp-nav-select .ant-select {
-  width: 100%;
-}
-
-.fp-nav-select-hint {
+.fpNavSelectHint {
   margin: 0;
   font-size: 11px;
   color: #64748b;
 }
 
-.fp-route-title {
+.fpRouteTitle {
   font-size: 14px;
   font-weight: 650;
   color: #0f172a;
 }
 
-.fp-route-meta {
+.fpRouteMeta {
   margin-top: 3px;
   font-size: 12px;
   color: #475569;
   font-variant-numeric: tabular-nums;
 }
 
-.fp-nav-actions {
+.fpNavActions {
   display: flex;
   gap: 8px;
   margin-top: 10px;
+
+  .fpNavButton {
+    flex: 1;
+  }
 }
 
-.fp-nav-actions .fp-nav-button {
-  flex: 1;
-}
-
-.fp-nav-hint {
+.fpNavHint {
   margin: 8px 0 0;
   font-size: 12px;
   line-height: 1.5;
   color: #b45309;
 }
 
-.fp-actions {
+.fpActions {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -200,44 +180,42 @@
   margin-top: 14px;
 }
 
-.fp-view-switch,
-.fp-nav-mode {
+.fpViewSwitch,
+.fpNavMode {
   display: inline-flex;
   padding: 2px;
   border-radius: 999px;
   background: #e2e8f0;
+
+  button {
+    padding: 5px 13px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #64748b;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  button.isActive {
+    background: #fff;
+    color: #0f172a;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
+  }
 }
 
-.fp-nav-mode {
+.fpNavMode {
   margin-bottom: 10px;
 }
 
-.fp-view-switch button,
-.fp-nav-mode button {
-  padding: 5px 13px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: #64748b;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.fp-view-switch button.is-active,
-.fp-nav-mode button.is-active {
-  background: #fff;
-  color: #0f172a;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
-}
-
-.fp-view-switch button:disabled {
+.fpViewSwitch button:disabled {
   opacity: 0.45;
   cursor: default;
 }
 
-.fp-fit {
+.fpFit {
   padding: 7px 16px;
   border: 0;
   border-radius: 999px;
@@ -247,25 +225,25 @@
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: #274a76;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
 }
 
-.fp-fit:hover:not(:disabled) {
-  background: #274a76;
-}
-
-.fp-fit:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.fp-hint {
+.fpHint {
   display: block;
   margin-top: 10px;
   font-size: 11px;
   color: #64748b;
 }
 
-.fp-nav-pin {
+.fpNavPin {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -280,71 +258,47 @@
   box-shadow: 0 3px 10px rgba(15, 23, 42, 0.3);
 }
 
-.fp-nav-pin-start {
+.fpNavPinStart {
   background: #16a34a;
 }
 
-.fp-nav-pin-end {
+.fpNavPinEnd {
   background: #dc2626;
 }
 
-.shop-label.is-active {
-  border-color: transparent;
-  background: #f97316;
-  color: #fff;
-}
-
-.shop-label.is-start {
-  border-color: transparent;
-  background: #16a34a;
-  color: #fff;
-}
-
-.shop-label.is-end {
-  border-color: transparent;
-  background: #dc2626;
-  color: #fff;
-}
-
-.shop-label.is-start .shop-label-merchant,
-.shop-label.is-end .shop-label-merchant,
-.shop-label.is-active .shop-label-merchant {
-  opacity: 0.9;
-}
-
-.maplibregl-marker {
+:global(.maplibregl-marker) {
   pointer-events: none;
 }
 
-.fp-popup .maplibregl-popup-content {
-  padding: 10px 14px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 10px;
-  font-family: inherit;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+.fpPopup {
+  :global(.maplibregl-popup-content) {
+    padding: 10px 14px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 10px;
+    font-family: inherit;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+  }
+
+  :global(.maplibregl-popup-tip) {
+    border-top-color: #fff;
+    border-bottom-color: #fff;
+  }
 }
 
-.fp-popup .maplibregl-popup-tip {
-  border-top-color: #fff;
-  border-bottom-color: #fff;
-  /* border-left-color: #fff;
-  border-right-color: #fff; */
-}
-
-.fp-popup-code {
+.fpPopupCode {
   font-size: 14px;
   font-weight: 700;
   color: #0f172a;
 }
 
-.fp-popup-merchant {
+.fpPopupMerchant {
   margin-top: 2px;
   font-size: 12px;
   font-weight: 500;
   color: #1e293b;
 }
 
-.fp-popup-meta {
+.fpPopupMeta {
   margin-top: 2px;
   font-size: 12px;
   color: #475569;
@@ -352,16 +306,11 @@
 }
 
 @media (max-width: 720px) {
-  .floor-preview-page {
-    height: auto;
-    min-height: 0;
-  }
-
-  .floor-preview-card .fp-map-wrap {
+  .fpMapWrap {
     min-height: 480px;
   }
 
-  .fp-panel {
+  .fpPanel {
     top: 12px;
     right: 12px;
     left: 12px;

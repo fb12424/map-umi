@@ -1,24 +1,26 @@
-/* 全屏编辑覆盖层：盖住页面内容，避免编辑时误触底层页面 */
-.editor-overlay {
+// 全屏编辑覆盖层：盖住页面内容，避免编辑时误触底层页面
+.editorOverlay {
   position: fixed;
   inset: 0;
   z-index: 999;
   background: #eef1f6;
 }
 
-.editor-map {
+.editorMap {
   position: relative;
   width: 100%;
   height: 100%;
+
+  // 嵌套一层：MapLibre 会给容器加 .maplibregl-map（position: relative），
+  // 同权重下会被后注入的第三方样式覆盖
+  .editorMapCanvas {
+    position: absolute;
+    inset: 0;
+  }
 }
 
-.editor-map-canvas {
-  position: absolute;
-  inset: 0;
-}
-
-/* 左上角悬浮区：工具栏 + 统计卡叠在地图上方，宽度取视口与 700px 的较小值 */
-.editor-corner {
+// 左上角悬浮区：工具栏 + 统计卡叠在地图上方，宽度取视口与 700px 的较小值
+.editorCorner {
   position: absolute;
   top: 12px;
   left: 12px;
@@ -27,10 +29,11 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
-  width: min(700px, calc(100vw - 96px));
+  // 转义：min() 会被 Less 当数学函数求值，丢失响应式表达
+  width: ~"min(700px, calc(100vw - 96px))";
 }
 
-.editor-summary {
+.editorSummary {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -40,36 +43,36 @@
   box-shadow: 0 4px 16px rgba(15, 23, 42, 0.16);
 }
 
-.editor-summary-item {
+.editorSummaryItem {
   display: flex;
   align-items: baseline;
   gap: 6px;
 }
 
-.editor-summary-label {
+.editorSummaryLabel {
   font-size: 12px;
   color: rgba(0, 0, 0, 0.45);
 }
 
-.editor-summary-value {
+.editorSummaryValue {
   font-size: 18px;
   font-weight: 600;
   line-height: 24px;
   color: rgba(0, 0, 0, 0.85);
   font-variant-numeric: tabular-nums;
+
+  &.isActive {
+    color: #2563eb;
+  }
 }
 
-.editor-summary-value.is-active {
-  color: #2563eb;
-}
-
-.editor-summary-divider {
+.editorSummaryDivider {
   width: 1px;
   height: 20px;
   background: rgba(15, 23, 42, 0.12);
 }
 
-.editor-toolbar {
+.editorToolbar {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -78,52 +81,50 @@
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 4px 16px rgba(15, 23, 42, 0.16);
+
+  .editorToolActive,
+  .editorToolActive:hover,
+  .editorToolActive:focus {
+    border-color: #2563eb;
+    color: #2563eb;
+    background: #eff6ff;
+  }
 }
 
-.editor-toolbar-row {
+.editorToolbarRow {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.editor-toolbar-secondary {
+.editorToolbarSecondary {
   padding-top: 8px;
   border-top: 1px dashed rgba(15, 23, 42, 0.12);
 }
 
-.editor-toolbar-label {
+.editorToolbarLabel {
   margin-right: 2px;
   font-size: 12px;
   color: rgba(0, 0, 0, 0.45);
 }
 
-.editor-toolbar-divider {
+.editorToolbarDivider {
   width: 1px;
   height: 20px;
   margin: 0 4px;
   background: rgba(15, 23, 42, 0.12);
 }
 
-.editor-toolbar-actions {
+.editorToolbarActions {
   margin-left: auto;
 }
 
-.editor-toolbar .editor-tool-active,
-.editor-toolbar .editor-tool-active:hover,
-.editor-toolbar .editor-tool-active:focus {
-  border-color: #2563eb;
-  color: #2563eb;
-  background: #eff6ff;
-}
-
-/* 底部操作提示常驻显示；pointer-events: none 让它不拦截下面的绘制操作 */
-.editor-hint {
-  /* position: absolute;
-  left: 50%;
-  bottom: 16px; */
+// 底部操作提示常驻显示；pointer-events: none 让它不拦截下面的绘制操作
+.editorHint {
   z-index: 10;
-  max-width: min(760px, calc(100vw - 48px));
+  // 转义：min() 会被 Less 当数学函数求值，丢失响应式表达
+  max-width: ~"min(760px, calc(100vw - 48px))";
   padding: 6px 12px;
   border-radius: 6px;
   background: rgba(15, 23, 42, 0.82);
@@ -131,12 +132,11 @@
   font-size: 12px;
   line-height: 18px;
   text-align: center;
-  /* transform: translateX(-50%); */
   pointer-events: none;
 }
 
-/* 吸附提示点：Marker 常驻，显隐由 JS 切换 is-visible（opacity 过渡） */
-.editor-snap {
+// 吸附提示点：Marker 常驻，显隐由 JS 切换 isVisible（opacity 过渡）
+.editorSnap {
   width: 12px;
   height: 12px;
   border: 2px solid #2563eb;
@@ -145,8 +145,8 @@
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.08s;
-}
 
-.editor-snap.is-visible {
-  opacity: 1;
+  &.isVisible {
+    opacity: 1;
+  }
 }

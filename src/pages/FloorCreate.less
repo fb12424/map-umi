@@ -1,0 +1,30 @@
+.createPage {
+  flex: 1;
+  min-height: 0;
+
+  .createLayout {
+    flex: 1;
+    min-height: 0;
+
+    > :global(.ant-col) {
+      display: flex;
+    }
+
+    :global(.ant-card) {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+    }
+
+    :global(.ant-card-body) {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      min-height: 0;
+    }
+  }
+}
+
+.previewCard :global(.ant-card-body) {
+  padding: 0;
+}

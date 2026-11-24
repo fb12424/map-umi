@@ -1,0 +1,99 @@
+.previewMapWrap {
+  position: relative;
+  // 铺满校验卡片剩余高度：100vh 减去顶部导航/卡片头部的预估高度
+  height: calc(100vh - 178px);
+  overflow: hidden;
+  border-radius: 0 0 8px 8px;
+  background: #eef1f6;
+
+  // 嵌套一层：MapLibre 会给容器加 .maplibregl-map（position: relative），
+  // 同权重下会被后注入的第三方样式覆盖
+  .previewMap {
+    position: absolute;
+    inset: 0;
+  }
+}
+
+// 左上角统计卡：铺位总数 + 位号体检（正常/无位号/重复）
+.previewMapSummary {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 2;
+  padding: 8px 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #475569;
+  font-size: 13px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+
+  strong {
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.previewMapCodeStats {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+  white-space: nowrap;
+
+  .isWarning strong {
+    color: #b45309;
+  }
+
+  .isDanger strong {
+    color: #dc2626;
+  }
+}
+
+.previewMapLegend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: #dc2626;
+  font-size: 12px;
+
+  i {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: #dc2626;
+  }
+}
+
+.previewMapToolbar {
+  position: absolute;
+  bottom: 20px;
+  left: 16px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.previewFit {
+  padding: 7px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: #1e3a5f;
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: #274a76;
+  }
+}
+
+:global(.maplibregl-marker) {
+  pointer-events: none;
+}

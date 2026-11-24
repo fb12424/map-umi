@@ -11,6 +11,7 @@ import {
 } from "antd";
 import { history } from "umi";
 import { deleteMap, listMaps } from "../services/maps.js";
+import styles from "../styles/page.less";
 
 const formatTime = (value) =>
   value ? new Date(value).toLocaleString("zh-CN", { hour12: false }) : "—";
@@ -125,7 +126,7 @@ export default function FloorList() {
   ];
 
   return (
-    <div className="page-stack">
+    <div className={styles.pageStack}>
       <Card
         title={"楼层列表"}
         extra={

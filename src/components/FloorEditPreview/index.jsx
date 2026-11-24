@@ -1,5 +1,5 @@
 import useEditPreview from "./useEditPreview.js";
-import "./FloorEditPreview.css";
+import styles from "./FloorEditPreview.less";
 
 // 纯展示壳：地图、标注、交互逻辑全部在 useEditPreview 里，
 // 这里只负责挂载容器、渲染统计卡和工具栏，所以组件本身没有状态。
@@ -25,24 +25,24 @@ export default function FloorEditPreview({
   });
 
   return (
-    <div className="preview-map-wrap">
-      <div ref={containerRef} className="preview-map" />
+    <div className={styles.previewMapWrap}>
+      <div ref={containerRef} className={styles.previewMap} />
 
       {stats && (
-        <div className="preview-map-summary">
+        <div className={styles.previewMapSummary}>
           <div>
             <strong>{stats.count}</strong> 间铺位
             {stats.facilityCount ? ` · ${stats.facilityCount} 个设施` : ""}
             {stats.obstacleCount ? ` · ${stats.obstacleCount} 个障碍区` : ""}
           </div>
-          <div className="preview-map-code-stats">
+          <div className={styles.previewMapCodeStats}>
             <span>
               正常位号 <strong>{stats.normal}</strong>
             </span>
-            <span className={stats.missing ? "is-warning" : ""}>
+            <span className={stats.missing ? styles.isWarning : ""}>
               无位号 <strong>{stats.missing}</strong>
             </span>
-            <span className={stats.duplicate ? "is-danger" : ""}>
+            <span className={stats.duplicate ? styles.isDanger : ""}>
               重复位号{" "}
               {stats.duplicate ? (
                 <>
@@ -56,7 +56,7 @@ export default function FloorEditPreview({
           </div>
           {/* 有重复位号时才出现图例，避免正常情况下多一行干扰信息 */}
           {stats.duplicate > 0 && (
-            <div className="preview-map-legend">
+            <div className={styles.previewMapLegend}>
               <i aria-hidden="true" />
               红色铺位为重复位号
             </div>
@@ -65,8 +65,8 @@ export default function FloorEditPreview({
       )}
 
       {/* 工具栏独立于地图控件，fitAll 是 Hook 里保存下来的闭包 */}
-      <div className="preview-map-toolbar">
-        <button type="button" className="preview-fit" onClick={fitAll}>
+      <div className={styles.previewMapToolbar}>
+        <button type="button" className={styles.previewFit} onClick={fitAll}>
           适配全图
         </button>
       </div>

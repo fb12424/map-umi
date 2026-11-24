@@ -1,5 +1,6 @@
 import { UndoOutlined } from "@ant-design/icons";
 import { Button, Popconfirm, Segmented, Space } from "antd";
+import styles from "./FloorMapEditor.less";
 
 // 纯展示工具栏：按钮状态完全由 props 推导，所有动作通过回调上抛，
 // 不含任何编辑逻辑，方便单独调整布局与文案
@@ -19,9 +20,9 @@ export default function EditorToolbar({
   onApply,
 }) {
   return (
-    <div className="editor-toolbar">
+    <div className={styles.editorToolbar}>
       {/* 第一行：撤销、编辑模式切换、整体取消/应用 */}
-      <div className="editor-toolbar-row">
+      <div className={styles.editorToolbarRow}>
         <Button
           size="small"
           icon={<UndoOutlined />}
@@ -31,9 +32,9 @@ export default function EditorToolbar({
         >
           撤销
         </Button>
-        <span className="editor-toolbar-divider" />
+        <span className={styles.editorToolbarDivider} />
 
-        <span className="editor-toolbar-label">编辑模式</span>
+        <span className={styles.editorToolbarLabel}>编辑模式</span>
         <Button
           type={tool === "select" ? "primary" : "default"}
           onClick={() => onToolChange("select")}
@@ -47,7 +48,7 @@ export default function EditorToolbar({
           新增铺位
         </Button>
 
-        <Space size={8} className="editor-toolbar-actions">
+        <Space size={8} className={styles.editorToolbarActions}>
           <Button size="small" onClick={onCancel}>
             取消
           </Button>
@@ -58,12 +59,14 @@ export default function EditorToolbar({
       </div>
 
       {/* 第二行：对选区生效的操作，disabled 条件即各操作的最低要求 */}
-      <div className="editor-toolbar-row editor-toolbar-secondary">
-        <span className="editor-toolbar-label">铺位操作</span>
+      <div
+        className={`${styles.editorToolbarRow} ${styles.editorToolbarSecondary}`}
+      >
+        <span className={styles.editorToolbarLabel}>铺位操作</span>
         <Button
           size="small"
           disabled={!selectionCount}
-          className={tool === "crop" ? "editor-tool-active" : ""}
+          className={tool === "crop" ? styles.editorToolActive : ""}
           onClick={() => onToolChange("crop")}
         >
           裁切所选
@@ -100,7 +103,9 @@ export default function EditorToolbar({
       </div>
       {/* 第三行：绘制形状；线段仅裁切模式提供，新增铺位不需要线段 */}
       {tool !== "select" && (
-        <div className="editor-toolbar-row editor-toolbar-secondary">
+        <div
+          className={`${styles.editorToolbarRow} ${styles.editorToolbarSecondary}`}
+        >
           <Segmented
             size="small"
             value={shape}

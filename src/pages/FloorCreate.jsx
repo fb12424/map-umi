@@ -25,6 +25,8 @@ import {
   normalizeOutlineGeoJson,
 } from "../lib/floorGeometry.js";
 import { areaTypeOf, findDuplicateCodes, normalizeShopData } from "../lib/shopGeometry.js";
+import pageStyles from "../styles/page.less";
+import styles from "./FloorCreate.less";
 import {
   createMap,
   getMap,
@@ -339,8 +341,8 @@ export default function FloorCreate() {
   };
 
   return (
-    <div className="page-stack create-page">
-      <Row className="create-layout" gutter={[16, 16]} align="stretch">
+    <div className={`${pageStyles.pageStack} ${styles.createPage}`}>
+      <Row className={styles.createLayout} gutter={[16, 16]} align="stretch">
         <Col xs={24} lg={6}>
           <Card title="楼层信息">
             <FloorGeoJsonUpload value={upload} onChange={handleUploadChange} />
@@ -454,7 +456,7 @@ export default function FloorCreate() {
         <Col xs={24} lg={18}>
           <Card
             title="楼层地图预览"
-            className="preview-card"
+            className={styles.previewCard}
             extra={
               <Space>
                 <Button

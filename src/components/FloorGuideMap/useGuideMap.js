@@ -53,6 +53,8 @@ import {
   merchantNoOf,
 } from "./previewCore.js";
 import { labelSize, renderShopLabel } from "../../lib/shopLabel.js";
+import shopLabelStyles from "../../lib/shopLabel.less";
+import styles from "./FloorGuideMap.less";
 
 export default function useGuideMap({ shops, floor }) {
   const containerRef = useRef(null);
@@ -356,7 +358,7 @@ export default function useGuideMap({ shops, floor }) {
       const type = areaTypeOf(feature.properties);
       const text = label;
       const el = document.createElement("div");
-      el.className = "shop-label";
+      el.className = shopLabelStyles.shopLabel;
       renderShopLabel(el, text, merchantName, type);
 
       const centroid = labelPoint(feature.geometry);
@@ -451,11 +453,17 @@ export default function useGuideMap({ shops, floor }) {
         item.el.style.display = visible ? "" : "none";
         if (visible) placed.push({ left, right, top, bottom });
         item.el.classList.toggle(
-          "is-active",
+          shopLabelStyles.isActive,
           item.uid === selectedRef.current || item.uid === hoveredRef.current,
         );
-        item.el.classList.toggle("is-start", item.uid === navRef.current.startUid);
-        item.el.classList.toggle("is-end", item.uid === navRef.current.endUid);
+        item.el.classList.toggle(
+          shopLabelStyles.isStart,
+          item.uid === navRef.current.startUid,
+        );
+        item.el.classList.toggle(
+          shopLabelStyles.isEnd,
+          item.uid === navRef.current.endUid,
+        );
       }
     };
 
@@ -543,7 +551,9 @@ export default function useGuideMap({ shops, floor }) {
 
     const addNavPin = (lngLat, type) => {
       const el = document.createElement("div");
-      el.className = `fp-nav-pin fp-nav-pin-${type}`;
+      el.className = `${styles.fpNavPin} ${
+        type === "start" ? styles.fpNavPinStart : styles.fpNavPinEnd
+      }`;
       el.textContent = type === "start" ? "起" : "终";
       const marker = new Marker({
         element: el,
@@ -760,7 +770,7 @@ export default function useGuideMap({ shops, floor }) {
         closeButton: false,
         offset: 14,
         maxWidth: "240px",
-        className: "fp-popup",
+        className: styles.fpPopup,
         anchor,
       })
         .setLngLat(event.lngLat)

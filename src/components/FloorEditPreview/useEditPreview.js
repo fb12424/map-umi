@@ -39,6 +39,7 @@ import {
   markDuplicates,
 } from "./previewCore.js";
 import { labelSize, renderShopLabel } from "../../lib/shopLabel.js";
+import shopLabelStyles from "../../lib/shopLabel.less";
 
 // 楼层预览 Hook。三块职责：
 // 1) MapLibre 实例生命周期（只创建一次，卸载时销毁）；
@@ -295,7 +296,9 @@ export default function useEditPreview({
       };
       const text = labelTextFor(item, showIndexRef.current);
       const el = document.createElement("div");
-      el.className = isDuplicate ? "shop-label is-duplicate" : "shop-label";
+      el.className = isDuplicate
+        ? `${shopLabelStyles.shopLabel} ${shopLabelStyles.isDuplicate}`
+        : shopLabelStyles.shopLabel;
       renderShopLabel(el, text, item.merchantName, item.type);
       const marker = new Marker({ element: el, anchor: "center" })
         .setLngLat(item.centroid)
@@ -339,7 +342,10 @@ export default function useEditPreview({
       const height = map.getContainer().clientHeight;
 
       for (const item of labels) {
-        item.el.classList.toggle("is-linked", item.uid === linkedRef.current);
+        item.el.classList.toggle(
+          shopLabelStyles.isLinked,
+          item.uid === linkedRef.current,
+        );
       }
 
       // 低缩放时铺位只有几个像素宽，全量标注必然重叠：
@@ -391,7 +397,10 @@ export default function useEditPreview({
 
         item.el.style.display = visible ? "" : "none";
         if (visible) placed.push({ left, right, top, bottom });
-        item.el.classList.toggle("is-active", item.uid === hoveredRef.current);
+        item.el.classList.toggle(
+          shopLabelStyles.isActive,
+          item.uid === hoveredRef.current,
+        );
       }
     };
 

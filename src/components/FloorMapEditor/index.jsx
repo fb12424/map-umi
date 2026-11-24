@@ -14,7 +14,7 @@ import EditorToolbar from "./EditorToolbar.jsx";
 import { editorReducer } from "./editorCore.js";
 import useEditorMap from "./useEditorMap.js";
 import useShopOperations from "./useShopOperations.js";
-import "./FloorMapEditor.css";
+import styles from "./FloorMapEditor.less";
 
 export default function FloorMapEditor({
   // dataset 形如 { raw, shops, unitCount }：raw 是上传/已保存的原始 GeoJSON，
@@ -156,13 +156,13 @@ export default function FloorMapEditor({
     : "拖拽矩形/椭圆或依次点击绘制多边形，生成新铺位；与已有铺位重叠的部分会自动扣除。";
 
   return (
-    <div className="editor-overlay">
-      <div className="editor-map">
+    <div className={styles.editorOverlay}>
+      <div className={styles.editorMap}>
         {/* MapLibre 的 canvas 由 useEditorMap 挂到这个容器里，CSS 用 absolute 铺满 */}
-        <div ref={containerRef} className="editor-map-canvas" />
+        <div ref={containerRef} className={styles.editorMapCanvas} />
 
         {/* 左上角悬浮区：工具栏 + 铺位/已选统计，宽度受视口限制，窄屏时自动换行 */}
-        <div className="editor-corner">
+        <div className={styles.editorCorner}>
           <EditorToolbar
             tool={tool}
             shape={shape}
@@ -178,21 +178,21 @@ export default function FloorMapEditor({
             onCancel={onCancel}
             onApply={handleApply}
           />
-          <div className="editor-summary">
-            <div className="editor-summary-item">
-              <span className="editor-summary-label">铺位</span>
-              <span className="editor-summary-value">
+          <div className={styles.editorSummary}>
+            <div className={styles.editorSummaryItem}>
+              <span className={styles.editorSummaryLabel}>铺位</span>
+              <span className={styles.editorSummaryValue}>
                 {shops.features.length}
               </span>
             </div>
-            <span className="editor-summary-divider" />
-            <div className="editor-summary-item">
-              <span className="editor-summary-label">已选</span>
+            <span className={styles.editorSummaryDivider} />
+            <div className={styles.editorSummaryItem}>
+              <span className={styles.editorSummaryLabel}>已选</span>
               <span
                 className={
                   selection.length
-                    ? "editor-summary-value is-active"
-                    : "editor-summary-value"
+                    ? `${styles.editorSummaryValue} ${styles.isActive}`
+                    : styles.editorSummaryValue
                 }
               >
                 {selection.length}
@@ -201,7 +201,7 @@ export default function FloorMapEditor({
           </div>
 
           {/* 底部操作提示常驻显示；pointer-events 在 CSS 里关掉，不会挡住绘制 */}
-          <div className="editor-hint">{hint}</div>
+          <div className={styles.editorHint}>{hint}</div>
         </div>
       </div>
     </div>

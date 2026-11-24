@@ -3,6 +3,7 @@ import {
   AREA_TYPE_LABEL,
   areaTypeOf,
 } from "../../lib/shopGeometry.js";
+import styles from "./FloorGuideMap.less";
 import {
   AREA_COLOR,
   CORRIDOR_COLOR,
@@ -99,10 +100,9 @@ export const isMerchantLinked = (properties) =>
 
 export function buildPopupContent(properties) {
   const wrap = document.createElement("div");
-  wrap.className = "fp-popup-inner";
 
   const code = document.createElement("div");
-  code.className = "fp-popup-code";
+  code.className = styles.fpPopupCode;
   const type = areaTypeOf(properties);
   code.textContent =
     type === AREA_TYPE.OBSTACLE
@@ -114,7 +114,7 @@ export function buildPopupContent(properties) {
   const merchantNo = merchantNoOf(properties);
   if (merchantName || merchantNo) {
     const merchant = document.createElement("div");
-    merchant.className = "fp-popup-merchant";
+    merchant.className = styles.fpPopupMerchant;
     merchant.textContent = [merchantName, merchantNo]
       .filter(Boolean)
       .join(" · ");

@@ -1,5 +1,6 @@
 import { Layout, Menu } from 'antd';
 import { history, useLocation } from 'umi';
+import styles from '../styles/layout.less';
 
 const { Header, Content } = Layout;
 
@@ -10,20 +11,20 @@ export default function BasicLayout({ children }) {
   const selectedKey = pathname.startsWith('/floors') ? '/floors' : '';
 
   return (
-    <Layout className="app-shell">
-      <Header className="app-header">
-        <div className="app-brand">
+    <Layout className={styles.appShell}>
+      <Header className={styles.appHeader}>
+        <div className={styles.appBrand}>
           地图管理后台DEMO
         </div>
         <Menu
-          className="app-menu"
+          className={styles.appMenu}
           mode="horizontal"
           selectedKeys={[selectedKey]}
           items={MENU_ITEMS}
           onClick={({ key }) => history.push(key)}
         />
       </Header>
-      <Content className="app-content">{children}</Content>
+      <Content className={styles.appContent}>{children}</Content>
     </Layout>
   );
 }

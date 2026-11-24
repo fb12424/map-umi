@@ -3,20 +3,20 @@
 // 用 DOM API 拼内容而非 innerHTML，商户名里的 < > & 不会破坏结构。
 import { createAreaTypeIconNode, FACILITY_LABEL_SIZE } from "./areaTypeIcons.js";
 import { isFacilityType, labelWidth } from "./shopGeometry.js";
-import "./shopLabel.css";
+import styles from "./shopLabel.less";
 
 // 可重入：同一 el 会反复调用（如切换"未编号/#序号"），用 classList 切换而非 className 覆盖
 export function renderShopLabel(el, text, merchantName, type) {
   el.textContent = "";
-  el.classList.toggle("iconOnly", isFacilityType(type));
-  el.classList.toggle("has-merchant", Boolean(merchantName));
+  el.classList.toggle(styles.iconOnly, isFacilityType(type));
+  el.classList.toggle(styles.hasMerchant, Boolean(merchantName));
 
   const code = document.createElement("span");
-  code.className = "shop-label-code";
+  code.className = styles.shopLabelCode;
   if (isFacilityType(type)) {
     const icon = createAreaTypeIconNode(type);
     if (icon) {
-      icon.classList.add("shop-label-icon");
+      icon.classList.add(styles.shopLabelIcon);
       code.appendChild(icon);
     }
   } else {
@@ -26,7 +26,7 @@ export function renderShopLabel(el, text, merchantName, type) {
 
   if (merchantName) {
     const merchant = document.createElement("span");
-    merchant.className = "shop-label-merchant";
+    merchant.className = styles.shopLabelMerchant;
     merchant.textContent = merchantName;
     el.appendChild(merchant);
   }

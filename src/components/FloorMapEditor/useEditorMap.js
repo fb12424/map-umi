@@ -22,6 +22,8 @@ import {
   labelPoint,
 } from "../../lib/shopGeometry.js";
 import { renderShopLabel } from "../../lib/shopLabel.js";
+import shopLabelStyles from "../../lib/shopLabel.less";
+import styles from "./FloorMapEditor.less";
 import { geometryToPolygons } from "../../lib/polygonOps.js";
 import {
   DRAFT_FILL_LAYER,
@@ -50,7 +52,7 @@ function createEditorLabelElement(feature) {
   if (!text) return null;
 
   const element = document.createElement("div");
-  element.className = "shop-label";
+  element.className = shopLabelStyles.shopLabel;
   return renderShopLabel(element, text, "", areaTypeOf(feature.properties));
 }
 
@@ -165,11 +167,11 @@ export default function useEditorMap({
     const marker = snapMarkerRef.current;
     if (!marker) return;
     if (!snapped) {
-      marker.getElement().classList.remove("is-visible");
+      marker.getElement().classList.remove(styles.isVisible);
       return;
     }
     marker.setLngLat([snapped.lngLat.lng, snapped.lngLat.lat]);
-    marker.getElement().classList.add("is-visible");
+    marker.getElement().classList.add(styles.isVisible);
   };
 
   // 清空草稿：取消绘制、隐藏吸附标记、清空草稿图层。
@@ -538,7 +540,7 @@ export default function useEditorMap({
 
       // 吸附提示标记：先放到商场中心占位，之后由 updateSnapMarker 控制显隐与位置
       const snapElement = document.createElement("div");
-      snapElement.className = "editor-snap";
+      snapElement.className = styles.editorSnap;
       snapMarkerRef.current = new Marker({
         element: snapElement,
         anchor: "center",
