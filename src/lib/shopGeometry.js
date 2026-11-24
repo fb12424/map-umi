@@ -1,3 +1,69 @@
+// 区域类型：商铺沿用位号/商户体系，其余为非商铺设施（只显示名称）；
+// 障碍区（墙体/柱子/镂空中庭）是纯几何占位，不显示标签也不参与导航
+export const AREA_TYPE = {
+  SHOP: 'shop',
+  ELEVATOR: 'elevator',
+  TOILET: 'toilet',
+  NURSING: 'nursing',
+  OBSTACLE: 'obstacle',
+};
+
+export const AREA_TYPE_LABEL = {
+  [AREA_TYPE.SHOP]: '商铺',
+  [AREA_TYPE.ELEVATOR]: '电梯',
+  [AREA_TYPE.TOILET]: '厕所',
+  [AREA_TYPE.NURSING]: '母婴室',
+  [AREA_TYPE.OBSTACLE]: '障碍区',
+};
+
+const NON_SHOP_TYPES = new Set(
+  Object.values(AREA_TYPE).filter((type) => type !== AREA_TYPE.SHOP),
+);
+
+// 历史数据没有 type 字段，一律按商铺处理，避免老地图被当成设施
+export function areaTypeOf(properties) {
+  const type = properties?.type;
+  return NON_SHOP_TYPES.has(type) ? type : AREA_TYPE.SHOP;
+}
+
+export function isShopFeature(properties) {
+  return areaTypeOf(properties) === AREA_TYPE.SHOP;
+}
+
+export function isObstacleFeature(properties) {
+  return areaTypeOf(properties) === AREA_TYPE.OBSTACLE;
+}
+
+const FACILITY_TYPES = new Set([
+  AREA_TYPE.ELEVATOR,
+  AREA_TYPE.TOILET,
+  AREA_TYPE.NURSING,
+]);
+
+// 设施 = 非商铺且非障碍物（电梯/厕所/母婴室），标注上会带类型图标
+export function isFacilityType(type) {
+  return FACILITY_TYPES.has(type);
+}
+
+// label 派生规则：商铺=铺位号，设施=名称；障碍区没有标签
+export function areaLabelOf(properties) {
+  const type = areaTypeOf(properties);
+  if (type === AREA_TYPE.OBSTACLE) return '';
+  if (type === AREA_TYPE.SHOP) {
+    return (properties?.code || '').trim() || '未编号';
+  }
+  return (properties?.name || '').trim() || '未命名';
+}
+
+// 地图上直接展示的短文案：商铺=位号，设施=名称，障碍区不展示
+export function areaTextOf(properties) {
+  const type = areaTypeOf(properties);
+  if (type === AREA_TYPE.OBSTACLE) return '';
+  return type === AREA_TYPE.SHOP
+    ? (properties?.code || '').trim()
+    : (properties?.name || '').trim();
+}
+
 function ringMetrics(ring) {
   const originX = ring[0][0];
   const originY = ring[0][1];
@@ -151,6 +217,7 @@ export function normalizeShopData(geojson) {
     usedUids.add(uid);
     feature.properties = { ...feature.properties, uid };
 
+    const type = areaTypeOf(feature.properties);
     const code = (feature.properties?.code || '').trim();
     const area = Number(feature.properties?.area_m2);
 
@@ -159,8 +226,9 @@ export function normalizeShopData(geojson) {
       geometry: { type: 'MultiPolygon', coordinates: polygons },
       properties: {
         ...feature.properties,
+        type,
         code,
-        label: code || '未编号',
+        label: areaLabelOf({ ...feature.properties, type, code }),
         area_m2: Number.isFinite(area) ? area : 0,
         uid,
       },

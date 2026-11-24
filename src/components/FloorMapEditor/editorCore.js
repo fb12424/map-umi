@@ -1,6 +1,12 @@
 // 编辑器共享的常量与纯函数：图层 id、样式表达式、撤销栈 reducer、几何环生成。
 // 与地图 Hook 分开，让不依赖 MapLibre 的部分可以单独阅读和复用。
-import { AREA_COLOR, HOVER_COLOR, SELECTED_COLOR } from "../../lib/geoCommon.js";
+import {
+  AREA_COLOR,
+  HOVER_COLOR,
+  OBSTACLE_COLOR,
+  SELECTED_COLOR,
+} from "../../lib/geoCommon.js";
+import { AREA_TYPE } from "../../lib/shopGeometry.js";
 
 // 数据源/图层 id 统一用 editor- 前缀，与预览组件的 preview-* 区分开，便于排查残留图层
 export const SOURCE_ID = "editor-shops";
@@ -36,6 +42,8 @@ export const FILL_COLOR = [
   SELECTED_COLOR,
   ["boolean", ["feature-state", "hover"], false],
   HOVER_COLOR,
+  ["==", ["get", "type"], AREA_TYPE.OBSTACLE],
+  OBSTACLE_COLOR,
   AREA_COLOR,
 ];
 

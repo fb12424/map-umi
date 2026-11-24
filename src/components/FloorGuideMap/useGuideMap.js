@@ -9,9 +9,18 @@ import {
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { DEFAULT_BUFFER_METERS } from "../../lib/floorGeometry.js";
-import { featureBounds, merchantNameOf } from "../../lib/geoCommon.js";
+import {
+  featureBounds,
+  merchantNameOf,
+  OBSTACLE_OUTLINE_COLOR,
+} from "../../lib/geoCommon.js";
 import { buildNavGrid, findRoute } from "../../lib/routing.js";
-import { labelPoint } from "../../lib/shopGeometry.js";
+import {
+  AREA_TYPE,
+  areaTypeOf,
+  isObstacleFeature,
+  labelPoint,
+} from "../../lib/shopGeometry.js";
 import {
   ALL_LAYERS,
   ALL_SOURCES,
@@ -41,10 +50,9 @@ import {
   SHOPS_EXTRUSION_LAYER,
   SOURCE_ID,
   buildPopupContent,
-  labelSize,
   merchantNoOf,
-  renderLabel,
 } from "./previewCore.js";
+import { labelSize, renderShopLabel } from "../../lib/shopLabel.js";
 
 export default function useGuideMap({ shops, floor }) {
   const containerRef = useRef(null);
@@ -241,6 +249,8 @@ export default function useGuideMap({ shops, floor }) {
           "#2563eb",
           ["boolean", ["feature-state", "hover"], false],
           "#f97316",
+          ["==", ["get", "type"], AREA_TYPE.OBSTACLE],
+          OBSTACLE_OUTLINE_COLOR,
           "#ffffff",
         ],
         "line-width": [
@@ -268,6 +278,8 @@ export default function useGuideMap({ shops, floor }) {
         "fill-extrusion-base": FLOOR_HEIGHT,
         "fill-extrusion-height": [
           "case",
+          ["==", ["get", "type"], AREA_TYPE.OBSTACLE],
+          FLOOR_HEIGHT + 0.02,
           [
             "any",
             ["boolean", ["feature-state", "start"], false],
@@ -332,15 +344,20 @@ export default function useGuideMap({ shops, floor }) {
     });
 
     let totalArea = 0;
+    let visibleCount = 0;
     for (const feature of shops.features) {
+      // 障碍区不显示标签、不计入铺位统计，也不进入导航目的地
+      if (isObstacleFeature(feature.properties)) continue;
       const { uid, label, area_m2: area } = feature.properties;
+      visibleCount += 1;
       totalArea += area;
 
       const merchantName = merchantNameOf(feature.properties);
+      const type = areaTypeOf(feature.properties);
       const text = label;
       const el = document.createElement("div");
-      el.className = "fp-shop-label";
-      renderLabel(el, text, merchantName);
+      el.className = "shop-label";
+      renderShopLabel(el, text, merchantName, type);
 
       const centroid = labelPoint(feature.geometry);
       const marker = new Marker({ element: el, anchor: "center" })
@@ -356,11 +373,11 @@ export default function useGuideMap({ shops, floor }) {
         marker,
         merchantName,
         merchantLabel: merchantName || merchantNoOf(feature.properties),
-        ...labelSize(text, merchantName),
+        ...labelSize(text, merchantName, type),
       });
     }
 
-    setStats({ count: shops.features.length, totalArea });
+    setStats({ count: visibleCount, totalArea });
 
     const fitPadding = () => {
       const width = map.getContainer().clientWidth;
@@ -686,22 +703,27 @@ export default function useGuideMap({ shops, floor }) {
     };
     fitBoundsRef.current = () => fit(650);
 
-    const onMouseMove = (event) => {
-      const features = map.queryRenderedFeatures(event.point, {
+    // 障碍区不可交互：queryRenderedFeatures 按绘制顺序从上到下返回，
+    // 最上层是障碍区就当作空白，避免点到它下面的铺位
+    const pickFeatureAt = (point) => {
+      const [top] = map.queryRenderedFeatures(point, {
         layers: [FILL_LAYER, SHOPS_EXTRUSION_LAYER],
       });
-      setHover(features.length ? features[0].properties.uid : null);
+      return top && !isObstacleFeature(top.properties) ? top : null;
+    };
+
+    const onMouseMove = (event) => {
+      const feature = pickFeatureAt(event.point);
+      setHover(feature ? feature.properties.uid : null);
     };
 
     const onMouseOut = () => setHover(null);
 
     const onClick = (event) => {
-      const features = map.queryRenderedFeatures(event.point, {
-        layers: [FILL_LAYER, SHOPS_EXTRUSION_LAYER],
-      });
+      const feature = pickFeatureAt(event.point);
 
       if (navModeRef.current === "click" && navRef.current.phase !== "idle") {
-        if (!features.length) {
+        if (!feature) {
           if (
             navRef.current.phase === "pick-start" ||
             navRef.current.phase === "pick-end"
@@ -710,17 +732,17 @@ export default function useGuideMap({ shops, floor }) {
           }
           return;
         }
-        handleNavPick(features[0].properties.uid);
+        handleNavPick(feature.properties.uid);
         return;
       }
 
-      if (!features.length) {
+      if (!feature) {
         clearSelection();
         updateLabels();
         return;
       }
 
-      const props = features[0].properties;
+      const props = feature.properties;
       const { uid } = props;
       if (selectedRef.current && selectedRef.current !== uid) {
         map.setFeatureState(

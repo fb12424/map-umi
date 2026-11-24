@@ -1,9 +1,14 @@
 // 预览层共用的常量与纯函数：图层/数据源 id、样式表达式、位号统计。
 // 与 Hook 拆开是为了让 MapLibre 生命周期之外的逻辑保持无副作用，便于单独阅读和复用。
-import { findDuplicateCodes, labelWidth } from "../../lib/shopGeometry.js";
+import {
+  areaTypeOf,
+  AREA_TYPE,
+  findDuplicateCodes,
+} from "../../lib/shopGeometry.js";
 import {
   AREA_COLOR,
   HOVER_COLOR,
+  OBSTACLE_COLOR,
   SELECTED_COLOR,
 } from "../../lib/geoCommon.js";
 
@@ -40,21 +45,27 @@ export const FILL_COLOR = [
   HOVER_COLOR,
   ["boolean", ["get", DUPLICATE_PROP], false],
   DUPLICATE_COLOR,
+  ["==", ["get", "type"], AREA_TYPE.OBSTACLE],
+  OBSTACLE_COLOR,
   AREA_COLOR,
 ];
 
 // 位号体检，结果供左上角统计卡展示。
+// 只统计商铺：设施（电梯/厕所等）没有位号，混进来会把"无位号"数字撑大。
 // duplicate 统计"重复了几种位号"，duplicateShops 统计"重复位号覆盖了几间铺位"，
 // 两者缺一不可：前者提示数据问题种类，后者和图上红色铺位数对得上。
 // 例：124 间铺位，6 间无位号，1F-101 重复 3 次、1F-118 重复 2 次
 //     → missing=6，duplicate=2 种，duplicateShops=5 间，normal=124-6-5=113。
 export function analyzeCodes(features) {
-  const duplicated = new Set(findDuplicateCodes(features));
+  const shopFeatures = features.filter(
+    (feature) => areaTypeOf(feature.properties) === "shop",
+  );
+  const duplicated = new Set(findDuplicateCodes(shopFeatures));
   let normal = 0;
   let missing = 0;
   let duplicateShops = 0;
 
-  for (const feature of features) {
+  for (const feature of shopFeatures) {
     const code = (feature.properties?.code || "").trim();
     if (!code) missing += 1;
     else if (duplicated.has(code)) duplicateShops += 1;
@@ -95,29 +106,3 @@ export const labelTextFor = (item, showUnnumberedIndex) => {
     : "未编号";
 };
 
-// 用 DOM API 拼标注内容而不是 innerHTML，商户名里的 < > & 不会破坏结构
-export function renderLabelContent(el, text, merchantName) {
-  el.textContent = "";
-
-  const code = document.createElement("span");
-  code.className = "shop-label-code";
-  code.textContent = text;
-  el.appendChild(code);
-
-  el.classList.toggle("has-merchant", Boolean(merchantName));
-  if (!merchantName) return;
-
-  const merchant = document.createElement("span");
-  merchant.className = "shop-label-merchant";
-  merchant.textContent = merchantName;
-  el.appendChild(merchant);
-}
-
-// 粗估标注盒子尺寸（中文按 10px、ASCII 按 6.4px 累加，另加 12px 内边距），
-// 供 updateLabels 做像素级碰撞检测；MapLibre Marker 不暴露自身布局尺寸。
-export function labelSize(text, merchantName) {
-  return {
-    width: Math.max(labelWidth(text), merchantName ? labelWidth(merchantName) : 0),
-    height: merchantName ? 34 : 22,
-  };
-}

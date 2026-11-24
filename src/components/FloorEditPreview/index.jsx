@@ -32,6 +32,8 @@ export default function FloorEditPreview({
         <div className="preview-map-summary">
           <div>
             <strong>{stats.count}</strong> 间铺位
+            {stats.facilityCount ? ` · ${stats.facilityCount} 个设施` : ""}
+            {stats.obstacleCount ? ` · ${stats.obstacleCount} 个障碍区` : ""}
           </div>
           <div className="preview-map-code-stats">
             <span>

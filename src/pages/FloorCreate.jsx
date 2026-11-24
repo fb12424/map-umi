@@ -24,7 +24,7 @@ import {
   deriveFloorFromShops,
   normalizeOutlineGeoJson,
 } from "../lib/floorGeometry.js";
-import { findDuplicateCodes, normalizeShopData } from "../lib/shopGeometry.js";
+import { areaTypeOf, findDuplicateCodes, normalizeShopData } from "../lib/shopGeometry.js";
 import {
   createMap,
   getMap,
@@ -32,6 +32,13 @@ import {
   getMapOutline,
   updateMap,
 } from "../services/maps.js";
+
+// 商铺个数只数商铺，设施（电梯/厕所/母婴）不计入
+function countShopFeatures(features = []) {
+  return features.filter(
+    (feature) => areaTypeOf(feature.properties) === "shop",
+  ).length;
+}
 
 function savedOutlineValue(raw) {
   if (!raw) return null;
@@ -148,7 +155,7 @@ export default function FloorCreate() {
     setFloorGeojson(null);
     setMapVersion((version) => version + 1);
     if (parsed) {
-      form.setFieldValue("shopCount", parsed.shops.features.length);
+      form.setFieldValue("shopCount", countShopFeatures(parsed.shops.features));
     }
   };
 
@@ -169,7 +176,7 @@ export default function FloorCreate() {
     setCompareOpen(false);
     setLinkedUid(null);
     setEditing(null);
-    form.setFieldValue("shopCount", merged.shops.features.length);
+    form.setFieldValue("shopCount", countShopFeatures(merged.shops.features));
   };
 
   const handleEditorApply = (nextDataset) => {
@@ -179,7 +186,7 @@ export default function FloorCreate() {
     setUploadApplied(true);
     setLinkedUid(null);
     setEditing(null);
-    form.setFieldValue("shopCount", nextDataset.shops.features.length);
+    form.setFieldValue("shopCount", countShopFeatures(nextDataset.shops.features));
     setEditorOpen(false);
   };
 
@@ -190,9 +197,35 @@ export default function FloorCreate() {
   const handleEditSave = (values) => {
     if (!editing) return;
 
-    const nextCode = values.code.trim();
-    const merchantNo = (values.merchantNo || "").trim();
-    const merchantName = (values.merchantName || "").trim();
+    const type = values.type || "shop";
+    const isShop = type === "shop";
+    const isObstacle = type === "obstacle";
+    // 商铺保留位号/商户体系，设施只保留名称/区域号；切换类型时把另一套清空，避免脏字段残留。
+    // 障碍区是纯几何占位，位号、名称、商户全部清空，地图上也不出标签
+    const nextCode = isShop ? (values.code || "").trim() : "";
+    const merchantNo = isShop ? (values.merchantNo || "").trim() : "";
+    const merchantName = isShop ? (values.merchantName || "").trim() : "";
+    const name =
+      isShop || isObstacle ? "" : (values.name || "").trim();
+    const areaNo =
+      isShop || isObstacle ? "" : (values.areaNo || "").trim();
+    const toiletType = type === "toilet" ? values.toiletType || "" : "";
+    const label = isShop
+      ? nextCode || "未编号"
+      : isObstacle
+      ? ""
+      : name || "未命名";
+
+    const patchProps = {
+      type,
+      code: nextCode,
+      merchantNo,
+      merchantName,
+      name,
+      areaNo,
+      toiletType,
+      label,
+    };
 
     const update = (prev) => {
       if (!prev) return prev;
@@ -205,13 +238,7 @@ export default function FloorCreate() {
             feature.properties.uid === editing.uid
               ? {
                   ...feature,
-                  properties: {
-                    ...feature.properties,
-                    code: nextCode,
-                    label: nextCode || "未编号",
-                    merchantNo,
-                    merchantName,
-                  },
+                  properties: { ...feature.properties, ...patchProps },
                 }
               : feature,
           ),
@@ -222,12 +249,7 @@ export default function FloorCreate() {
             feature.properties?.uid === editing.uid
               ? {
                   ...feature,
-                  properties: {
-                    ...feature.properties,
-                    code: nextCode,
-                    merchantNo,
-                    merchantName,
-                  },
+                  properties: { ...feature.properties, ...patchProps },
                 }
               : feature,
           ),
@@ -238,7 +260,11 @@ export default function FloorCreate() {
     if (isEdit && !upload) setSaved(update);
     else setUpload(update);
 
-    message.success(`已更新铺位 ${nextCode} 的信息`);
+    message.success(
+      isObstacle
+        ? "已更新障碍区信息"
+        : `已更新${isShop ? "铺位" : "设施"} ${label} 的信息`,
+    );
     setEditing(null);
   };
 
@@ -254,7 +280,7 @@ export default function FloorCreate() {
     const base = {
       floorCode: values.code.trim(),
       name: values.name.trim(),
-      unitCount: values.shopCount ?? (shops ? shops.features.length : 0),
+      unitCount: values.shopCount ?? (shops ? countShopFeatures(shops.features) : 0),
     };
 
     if (!isEdit && !upload) {

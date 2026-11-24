@@ -1,5 +1,5 @@
 import { difference, intersection, union } from 'polyclip-ts';
-import { pointInPolygon } from './shopGeometry.js';
+import { areaLabelOf, pointInPolygon } from './shopGeometry.js';
 
 const EARTH_RADIUS = 6378137;
 const RAD = Math.PI / 180;
@@ -211,7 +211,7 @@ export function createShopFeature(polygons, properties = {}) {
     properties: {
       ...properties,
       code,
-      label: code || '未编号',
+      label: areaLabelOf({ ...properties, code }),
       area_m2: polygonsAreaM2(polygons),
     },
   };

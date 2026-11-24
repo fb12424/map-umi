@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Button, Drawer, Select, Space, Table, Tag, Typography } from "antd";
-import { findDuplicateCodes } from "../lib/shopGeometry.js";
+import { findDuplicateCodes, isShopFeature } from "../lib/shopGeometry.js";
 
 const { Text } = Typography;
 
@@ -25,8 +25,9 @@ function analyzeNewCodes(features) {
 }
 
 function compareByCode(oldShops, newShops) {
-  const oldFeatures = oldShops?.features ?? [];
-  const newFeatures = newShops?.features ?? [];
+  // 只比对商铺：设施和障碍区没有铺位号，混进来会被当成"新增未编号铺位"
+  const oldFeatures = (oldShops?.features ?? []).filter(isShopFeature);
+  const newFeatures = (newShops?.features ?? []).filter(isShopFeature);
 
   const numberedOld = oldFeatures.filter((feature) =>
     text(feature.properties.code),
@@ -134,8 +135,8 @@ export default function FloorGeoJsonCompare({
 }) {
   const [targets, setTargets] = useState({});
 
-  const oldFeatures = oldShops?.features ?? [];
-  const newFeatures = newData?.shops?.features ?? [];
+  const oldFeatures = (oldShops?.features ?? []).filter(isShopFeature);
+  const newFeatures = (newData?.shops?.features ?? []).filter(isShopFeature);
   const ordinalByUid = new Map(
     newFeatures.map((feature, index) => [feature.properties.uid, index + 1]),
   );
@@ -145,7 +146,7 @@ export default function FloorGeoJsonCompare({
     [oldShops, newData],
   );
   const codeIssues = useMemo(
-    () => analyzeNewCodes(newData?.shops?.features ?? []),
+    () => analyzeNewCodes(newFeatures),
     [newData],
   );
 

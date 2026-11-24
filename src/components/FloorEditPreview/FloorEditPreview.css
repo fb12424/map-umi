@@ -92,47 +92,10 @@
   background: #274a76;
 }
 
-/* 标注默认态：pointer-events 关闭，避免 Marker 挡住底下的铺位点击 */
-.shop-label {
-  pointer-events: none;
-  user-select: none;
-  padding: 1px 5px;
-  border: 1px solid rgba(30, 58, 95, 0.18);
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.94);
-  color: #1e293b;
-  font-family: inherit;
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 14px;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
-  transition: background 0.12s ease, color 0.12s ease;
-}
-
 .shop-label.is-duplicate {
   border-color: rgba(220, 38, 38, 0.5);
   background: #fef2f2;
   color: #b91c1c;
-}
-
-.shop-label.has-merchant {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 1px 6px;
-  text-align: center;
-}
-
-.shop-label-merchant {
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 0;
-  opacity: 0.72;
 }
 
 /* 状态样式：is-duplicate 重复位号 / is-active hover / is-linked 表格联动 */

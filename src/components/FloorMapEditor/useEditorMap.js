@@ -10,8 +10,18 @@ import {
   NavigationControl,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { CORRIDOR_COLOR, featureBounds } from "../../lib/geoCommon.js";
-import { labelPoint } from "../../lib/shopGeometry.js";
+import {
+  CORRIDOR_COLOR,
+  featureBounds,
+  OBSTACLE_OUTLINE_COLOR,
+} from "../../lib/geoCommon.js";
+import {
+  areaTextOf,
+  areaTypeOf,
+  AREA_TYPE,
+  labelPoint,
+} from "../../lib/shopGeometry.js";
+import { renderShopLabel } from "../../lib/shopLabel.js";
 import { geometryToPolygons } from "../../lib/polygonOps.js";
 import {
   DRAFT_FILL_LAYER,
@@ -32,6 +42,17 @@ import {
   rectangleRing,
   toXy,
 } from "./editorCore.js";
+
+// 编辑器标注：商铺/设施按文案显示；设施（电梯/厕所/母婴室）改为只显示类型图标徽标。
+// 障碍区和空文案（含未命名设施）不画，避免编辑器里铺满占位文案
+function createEditorLabelElement(feature) {
+  const text = areaTextOf(feature.properties);
+  if (!text) return null;
+
+  const element = document.createElement("div");
+  element.className = "shop-label";
+  return renderShopLabel(element, text, "", areaTypeOf(feature.properties));
+}
 
 export default function useEditorMap({
   shops,
@@ -408,12 +429,9 @@ export default function useEditorMap({
       labelsRef.current = [];
 
       for (const feature of features) {
-        const code = (feature.properties.code || "").trim();
-        if (!code) continue;
+        const element = createEditorLabelElement(feature);
+        if (!element) continue;
 
-        const element = document.createElement("div");
-        element.className = "editor-shop-label";
-        element.textContent = code;
         const marker = new Marker({ element, anchor: "center" })
           .setLngLat(labelPoint(feature.geometry))
           .addTo(map);
@@ -466,6 +484,8 @@ export default function useEditorMap({
             "#1d4ed8",
             ["boolean", ["feature-state", "hover"], false],
             "#f97316",
+            ["==", ["get", "type"], AREA_TYPE.OBSTACLE],
+            OBSTACLE_OUTLINE_COLOR,
             "#ffffff",
           ],
           "line-width": [
@@ -682,11 +702,8 @@ export default function useEditorMap({
     for (const item of labelsRef.current) item.marker.remove();
     labelsRef.current = [];
     for (const feature of shops.features) {
-      const code = (feature.properties.code || "").trim();
-      if (!code) continue;
-      const element = document.createElement("div");
-      element.className = "editor-shop-label";
-      element.textContent = code;
+      const element = createEditorLabelElement(feature);
+      if (!element) continue;
       const marker = new Marker({ element, anchor: "center" })
         .setLngLat(labelPoint(feature.geometry))
         .addTo(map);

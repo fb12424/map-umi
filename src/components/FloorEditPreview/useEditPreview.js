@@ -11,8 +11,15 @@ import {
   CORRIDOR_COLOR,
   featureBounds,
   merchantNameOf,
+  OBSTACLE_OUTLINE_COLOR,
 } from "../../lib/geoCommon.js";
-import { labelPoint } from "../../lib/shopGeometry.js";
+import {
+  AREA_TYPE,
+  areaLabelOf,
+  areaTypeOf,
+  isObstacleFeature,
+  labelPoint,
+} from "../../lib/shopGeometry.js";
 import {
   ALL_LAYERS,
   DUPLICATE_PROP,
@@ -28,11 +35,10 @@ import {
   SOURCE_ID,
   analyzeCodes,
   isValidFloor,
-  labelSize,
   labelTextFor,
   markDuplicates,
-  renderLabelContent,
 } from "./previewCore.js";
+import { labelSize, renderShopLabel } from "../../lib/shopLabel.js";
 
 // 楼层预览 Hook。三块职责：
 // 1) MapLibre 实例生命周期（只创建一次，卸载时销毁）；
@@ -233,6 +239,8 @@ export default function useEditPreview({
           SELECTED_OUTLINE_COLOR,
           ["boolean", ["feature-state", "hover"], false],
           HOVER_OUTLINE_COLOR,
+          ["==", ["get", "type"], AREA_TYPE.OBSTACLE],
+          OBSTACLE_OUTLINE_COLOR,
           "#ffffff",
         ],
         "line-width": [
@@ -252,30 +260,43 @@ export default function useEditPreview({
     // 1) 需要"位号 + 商户名"两行、不同字号和省略号的排版；
     // 2) 需要在 JS 里手动避让，联动标注要能强制保留、允许压盖。
     mapData.features.forEach((feature, featureIndex) => {
+      const props = feature.properties;
+      // 障碍区是纯几何占位：不生成标注，也不参与标注避让
+      if (isObstacleFeature(props)) return;
+
       const {
         uid,
         label,
         area_m2: area,
         [DUPLICATE_PROP]: isDuplicate,
-      } = feature.properties;
+      } = props;
 
+      const type = areaTypeOf(props);
+      const isShop = type === "shop";
       // code 去空格后决定显示真实位号还是走"未编号"回退
-      const code = (feature.properties.code || "").trim();
+      const code = (props.code || "").trim();
       // 位号可能是 1F-101 / B1-101 等，直接显示完整值，不做前缀截断
       // centroid 用 labelPoint：凹形铺位（L 形）的几何重心可能落在铺位外，
       // 那里会退而取最近的"在多边形内"的网格采样点
       const item = {
         uid,
         area,
-        merchantName: merchantNameOf(feature.properties),
+        type,
+        // 商铺沿用"位号 + 商户名"两行；设施只显示类型图标徽标
+        merchantName: isShop ? merchantNameOf(props) : "",
         centroid: labelPoint(feature.geometry),
-        codeText: code ? label || code : null,
+        // codeText 为 null 时才走"未编号/#序号"回退；设施直接给名称，避免被编号回退覆盖
+        codeText: isShop
+          ? code
+            ? label || code
+            : null
+          : (props.name || "").trim() || "未命名",
         index: featureIndex + 1,
       };
       const text = labelTextFor(item, showIndexRef.current);
       const el = document.createElement("div");
       el.className = isDuplicate ? "shop-label is-duplicate" : "shop-label";
-      renderLabelContent(el, text, item.merchantName);
+      renderShopLabel(el, text, item.merchantName, item.type);
       const marker = new Marker({ element: el, anchor: "center" })
         .setLngLat(item.centroid)
         .addTo(map);
@@ -284,15 +305,24 @@ export default function useEditPreview({
         ...item,
         el,
         marker,
-        ...labelSize(text, item.merchantName),
+        ...labelSize(text, item.merchantName, item.type),
       });
     });
 
     labelsRef.current = labels;
 
-    // duplicate 是重复位号的种类数，duplicateShops 是红色铺位的实际数量
+    const shopCount = geojson.features.filter(
+      (feature) => areaTypeOf(feature.properties) === "shop",
+    ).length;
+    const obstacleCount = geojson.features.filter((feature) =>
+      isObstacleFeature(feature.properties),
+    ).length;
+    // duplicate 是重复位号的种类数，duplicateShops 是红色铺位的实际数量；
+    // count 只数商铺，设施和障碍区分开统计，避免统计卡把非营业面算成铺位
     setStats({
-      count: geojson.features.length,
+      count: shopCount,
+      facilityCount: geojson.features.length - shopCount - obstacleCount,
+      obstacleCount,
       normal: codeStats.normal,
       missing: codeStats.missing,
       duplicate: codeStats.duplicated.size,
@@ -406,10 +436,14 @@ export default function useEditPreview({
       const props = features[0].properties;
       onShopClickRef.current?.({
         uid: props.uid,
+        type: areaTypeOf(props),
         code: (props.code || "").trim(),
-        label: props.label || props.code || "未编号",
+        label: props.label || areaLabelOf(props),
         merchantNo: props.merchantNo || "",
         merchantName: props.merchantName || "",
+        name: (props.name || "").trim(),
+        areaNo: (props.areaNo || "").trim(),
+        toiletType: props.toiletType || "",
       });
     };
 
@@ -501,8 +535,8 @@ export default function useEditPreview({
     showIndexRef.current = showUnnumberedIndex;
     for (const item of labelsRef.current) {
       const text = labelTextFor(item, showUnnumberedIndex);
-      renderLabelContent(item.el, text, item.merchantName);
-      const size = labelSize(text, item.merchantName);
+      renderShopLabel(item.el, text, item.merchantName, item.type);
+      const size = labelSize(text, item.merchantName, item.type);
       item.width = size.width;
       item.height = size.height;
     }

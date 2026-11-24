@@ -102,7 +102,7 @@ export default function NavPanel({
               allowClear
               optionFilterProp="label"
               disabled={navStatus !== "ready"}
-              notFoundContent="暂无已关联商户的铺位"
+              notFoundContent="暂无可导航的目标"
             />
             <Select
               size="small"
@@ -114,11 +114,11 @@ export default function NavPanel({
               allowClear
               optionFilterProp="label"
               disabled={navStatus !== "ready"}
-              notFoundContent="暂无已关联商户的铺位"
+              notFoundContent="暂无可导航的目标"
             />
             <p className="fp-nav-select-hint">
               {navStatus === "ready"
-                ? "仅显示已关联商户的铺位"
+                ? "已关联商户的铺位与设施均可导航"
                 : navStatus === "error"
                 ? "导航不可用"
                 : "正在准备导航…"}

@@ -3,6 +3,9 @@ import { LngLatBounds } from "maplibre-gl";
 export const CORRIDOR_COLOR = "#f4e5c9";
 export const HOVER_COLOR = "#f2a33a";
 export const SELECTED_COLOR = "#2563eb";
+// 障碍区用中性灰，和营业铺位（蓝色系）明显区分
+export const OBSTACLE_COLOR = "#c8d1da";
+export const OBSTACLE_OUTLINE_COLOR = "#c8d1da";
 
 export const AREA_COLOR = [
   "step",

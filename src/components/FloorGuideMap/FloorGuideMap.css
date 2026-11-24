@@ -288,59 +288,27 @@
   background: #dc2626;
 }
 
-.fp-shop-label {
-  pointer-events: none;
-  user-select: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 1px 6px;
-  border: 1px solid rgba(30, 58, 95, 0.18);
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.94);
-  color: #1e293b;
-  font-family: inherit;
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 14px;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-  text-align: center;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
-  transition: background 0.12s ease, color 0.12s ease;
-}
-
-.fp-label-merchant {
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 0;
-  opacity: 0.72;
-}
-
-.fp-shop-label.is-active {
+.shop-label.is-active {
   border-color: transparent;
   background: #f97316;
   color: #fff;
 }
 
-.fp-shop-label.is-start {
+.shop-label.is-start {
   border-color: transparent;
   background: #16a34a;
   color: #fff;
 }
 
-.fp-shop-label.is-end {
+.shop-label.is-end {
   border-color: transparent;
   background: #dc2626;
   color: #fff;
 }
 
-.fp-shop-label.is-start .fp-label-merchant,
-.fp-shop-label.is-end .fp-label-merchant,
-.fp-shop-label.is-active .fp-label-merchant {
+.shop-label.is-start .shop-label-merchant,
+.shop-label.is-end .shop-label-merchant,
+.shop-label.is-active .shop-label-merchant {
   opacity: 0.9;
 }
 
@@ -359,8 +327,8 @@
 .fp-popup .maplibregl-popup-tip {
   border-top-color: #fff;
   border-bottom-color: #fff;
-  border-left-color: #fff;
-  border-right-color: #fff;
+  /* border-left-color: #fff;
+  border-right-color: #fff; */
 }
 
 .fp-popup-code {

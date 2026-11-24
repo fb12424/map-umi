@@ -17,8 +17,25 @@ import {
   unionPolygons,
   updateShopGeometry,
 } from "../../lib/polygonOps.js";
-import { labelPoint } from "../../lib/shopGeometry.js";
+import { isShopFeature, labelPoint } from "../../lib/shopGeometry.js";
 import { ADD_MIN_FREE_M2, ADD_MIN_FREE_RATIO } from "./editorCore.js";
+
+// 切线/多片拆分生成的新要素属性：商铺置空位号待录，
+// 设施沿用原类型与名称，避免把厕所/电梯拆成无名空铺位
+function derivedPartProps(properties) {
+  if (isShopFeature(properties)) {
+    return { code: "", merchantNo: "", merchantName: "" };
+  }
+  return {
+    type: properties.type,
+    name: properties.name || "",
+    areaNo: properties.areaNo || "",
+    toiletType: properties.toiletType || "",
+    code: "",
+    merchantNo: "",
+    merchantName: "",
+  };
+}
 
 export default function useShopOperations({ dispatch, shops, selection }) {
   // 操作可能由地图事件触发，统一从 ref 读最新的铺位/选区
@@ -201,9 +218,7 @@ export default function useShopOperations({ dispatch, shops, selection }) {
       // uidPool 逐次追加，保证同一批里生成的新 uid 不重复
       const part = createShopFeature(created, {
         uid: nextShopUid(uidPool),
-        code: "",
-        merchantNo: "",
-        merchantName: "",
+        ...derivedPartProps(feature.properties),
       });
       uidPool.push(part);
       nextFeatures.push(part);
@@ -307,9 +322,7 @@ export default function useShopOperations({ dispatch, shops, selection }) {
 
         const part = createShopFeature([polygon], {
           uid: nextShopUid(uidPool),
-          code: "",
-          merchantNo: "",
-          merchantName: "",
+          ...derivedPartProps(feature.properties),
         });
         uidPool.push(part);
         nextFeatures.push(part);

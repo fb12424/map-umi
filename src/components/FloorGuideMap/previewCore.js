@@ -1,8 +1,13 @@
-import { labelWidth } from "../../lib/shopGeometry.js";
+import {
+  AREA_TYPE,
+  AREA_TYPE_LABEL,
+  areaTypeOf,
+} from "../../lib/shopGeometry.js";
 import {
   AREA_COLOR,
   CORRIDOR_COLOR,
   HOVER_COLOR,
+  OBSTACLE_COLOR,
   SELECTED_COLOR,
   merchantNameOf,
 } from "../../lib/geoCommon.js";
@@ -56,6 +61,8 @@ export const FILL_COLOR = [
   SELECTED_COLOR,
   ["boolean", ["feature-state", "hover"], false],
   HOVER_COLOR,
+  ["==", ["get", "type"], AREA_TYPE.OBSTACLE],
+  OBSTACLE_COLOR,
   AREA_COLOR,
 ];
 
@@ -69,10 +76,14 @@ export const EXTRUSION_COLOR = [
   SELECTED_COLOR,
   ["boolean", ["feature-state", "hover"], false],
   "#f97316",
+  ["==", ["get", "type"], AREA_TYPE.OBSTACLE],
+  OBSTACLE_COLOR,
   AREA_COLOR,
 ];
 
-const numberFormat = new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 0 });
+const numberFormat = new Intl.NumberFormat("zh-CN", {
+  maximumFractionDigits: 0,
+});
 
 export function formatDuration(seconds) {
   if (!Number.isFinite(seconds) || seconds <= 0) return "—";
@@ -80,34 +91,11 @@ export function formatDuration(seconds) {
   return `${Math.round(seconds / 60)} 分钟`;
 }
 
-export const merchantNoOf = (properties) => (properties.merchantNo || "").trim();
+export const merchantNoOf = (properties) =>
+  (properties.merchantNo || "").trim();
 
 export const isMerchantLinked = (properties) =>
   Boolean(merchantNameOf(properties) || merchantNoOf(properties));
-
-export function renderLabel(el, text, merchantName) {
-  el.textContent = "";
-
-  const code = document.createElement("span");
-  code.className = "fp-label-code";
-  code.textContent = text;
-  el.appendChild(code);
-
-  el.classList.toggle("has-merchant", Boolean(merchantName));
-  if (!merchantName) return;
-
-  const merchant = document.createElement("span");
-  merchant.className = "fp-label-merchant";
-  merchant.textContent = merchantName;
-  el.appendChild(merchant);
-}
-
-export function labelSize(text, merchantName) {
-  return {
-    width: Math.max(labelWidth(text), merchantName ? labelWidth(merchantName) : 0),
-    height: merchantName ? 32 : 20,
-  };
-}
 
 export function buildPopupContent(properties) {
   const wrap = document.createElement("div");
@@ -115,7 +103,11 @@ export function buildPopupContent(properties) {
 
   const code = document.createElement("div");
   code.className = "fp-popup-code";
-  code.textContent = properties.label || properties.code || "未编号";
+  const type = areaTypeOf(properties);
+  code.textContent =
+    type === AREA_TYPE.OBSTACLE
+      ? AREA_TYPE_LABEL[type]
+      : properties.label || properties.code || "未编号";
   wrap.appendChild(code);
 
   const merchantName = merchantNameOf(properties);
@@ -123,16 +115,19 @@ export function buildPopupContent(properties) {
   if (merchantName || merchantNo) {
     const merchant = document.createElement("div");
     merchant.className = "fp-popup-merchant";
-    merchant.textContent = [merchantName, merchantNo].filter(Boolean).join(" · ");
+    merchant.textContent = [merchantName, merchantNo]
+      .filter(Boolean)
+      .join(" · ");
     wrap.appendChild(merchant);
   }
 
-  const meta = document.createElement("div");
-  meta.className = "fp-popup-meta";
-  meta.textContent = `${Number(properties.area_m2).toFixed(1)} m²`;
-  wrap.appendChild(meta);
+  // const meta = document.createElement("div");
+  // meta.className = "fp-popup-meta";
+  // meta.textContent = `${Number(properties.area_m2).toFixed(1)} m²`;
+  // wrap.appendChild(meta);
 
   return wrap;
 }
 
 export { numberFormat };
+
