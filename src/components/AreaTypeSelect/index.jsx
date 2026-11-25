@@ -1,20 +1,45 @@
 import React from "react";
 import styles from "./index.less";
 
-const AreaTypeSelect = ({ value, options = [], onChange, id }) => {
+const AreaTypeSelect = ({
+  value,
+  options = [],
+  onChange,
+  id,
+  multiple = false,
+}) => {
+  const isActive = (optionValue) =>
+    multiple
+      ? Array.isArray(value) && value.includes(optionValue)
+      : optionValue === value;
+
   const handleSelect = (next) => {
-    if (next === value) return;
-    onChange?.(next);
+    if (!multiple) {
+      if (next === value) return;
+      onChange?.(next);
+      return;
+    }
+
+    const current = Array.isArray(value) ? value : [];
+    onChange?.(
+      current.includes(next)
+        ? current.filter((item) => item !== next)
+        : [...current, next],
+    );
   };
 
   return (
-    <div id={id} className={styles.area} role="radiogroup">
+    <div
+      id={id}
+      className={styles.area}
+      role={multiple ? "group" : "radiogroup"}
+    >
       {options.map((option) => {
-        const active = option.value === value;
+        const active = isActive(option.value);
         return (
           <div
             key={option.value}
-            role="radio"
+            role={multiple ? "checkbox" : "radio"}
             aria-checked={active}
             tabIndex={0}
             className={`${styles.areaItem}${

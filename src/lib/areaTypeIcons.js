@@ -1,6 +1,6 @@
 // 区域类型图标：同一份图形数据同时供 React（AreaTypeSelect/icons.jsx）
-// 和地图标注（纯 DOM 的 createAreaTypeIconNode）使用，避免两处各写一套 path。
-import { AREA_TYPE } from './shopGeometry.js';
+// 和地图标注（纯 DOM 的 createFacilityIconNode）使用，避免两处各写一套 path。
+import { AREA_TYPE, FACILITY_KIND } from './shopGeometry.js';
 
 export const AREA_ICON_BASE_PROPS = {
   width: '1em',
@@ -24,13 +24,13 @@ export const AREA_TYPE_ICON_SHAPES = {
     },
     { tag: 'path', d: 'M9.5 20v-4.5h5V20' },
   ],
-  [AREA_TYPE.ELEVATOR]: [
+  [FACILITY_KIND.ELEVATOR]: [
     { tag: 'rect', x: 4.5, y: 3, width: 15, height: 18, rx: 1.8 },
     { tag: 'path', d: 'M12 3v18' },
     { tag: 'path', d: 'M8.2 10.5v-5M8.2 5.5 6.7 7M8.2 5.5 9.7 7' },
     { tag: 'path', d: 'M15.8 13.5v5M15.8 18.5l-1.5-1.5M15.8 18.5l1.5-1.5' },
   ],
-  [AREA_TYPE.NURSING]: [
+  [FACILITY_KIND.NURSING]: [
     {
       tag: 'path',
       d: 'M9.3 8.2h5.4v9.6a2.2 2.2 0 0 1-2.2 2.2h-1a2.2 2.2 0 0 1-2.2-2.2Z',
@@ -46,6 +46,17 @@ export const AREA_TYPE_ICON_SHAPES = {
     { tag: 'path', d: 'M8.2 6v4.5M15.8 6v4.5M12 10.5V15M8.2 15v3M15.8 15v3' },
   ],
 };
+
+// "公共设施"类型图标：设计稿为 1024 视口，按 24/1024 缩放后复用现有 24 视口
+export const PUBLIC_FACILITY_ICON_SHAPES = [
+  {
+    tag: 'path',
+    d: 'M515.479165 943.569901H411.513541c-14.018987 0-25.377436-11.358449-25.377436-25.377436V715.786949H202.661337c-6.037374 0-11.870091-2.148896-16.474868-6.139702l-96.802638-83.192965c-5.62806-4.809433-8.80024-11.870091-8.80024-19.237734 0-7.367643 3.172179-14.4283 8.80024-19.237733l96.802638-83.192965c4.604777-3.990806 10.437494-6.139702 16.474868-6.139702h183.474768v-62.420306H277.054062c-14.018987 0-25.377436-11.358449-25.377436-25.377436V242.722894c0-14.018987 11.358449-25.377436 25.377436-25.377436h109.184371v-62.727291c0-42.67093 34.689317-77.257919 77.25792-77.257919 42.67093 0 77.257919 34.689317 77.257919 77.257919v62.727291h228.396922c6.037374 0 11.870091 2.148896 16.474868 6.139702l97.825922 84.011592c5.62806 4.809433 8.80024 11.870091 8.800239 19.237734s-3.172179 14.4283-8.800239 19.237733l-97.825922 84.113921c-4.604777 3.990806-10.437494 6.139702-16.474868 6.139702H540.754272v62.420306H689.744379c14.018987 0 25.377436 11.358449 25.377436 25.377435v166.488259c0 14.018987-11.358449 25.377436-25.377436 25.377436H540.754272v202.507844c0 13.81433-11.256121 25.172779-25.275107 25.172779z m-78.588189-50.652543H490.204057V690.409513c0-14.018987 11.358449-25.377436 25.377436-25.377435h148.887779V549.298691H515.479165c-14.018987 0-25.377436-11.358449-25.377436-25.377436V410.848406c0-14.018987 11.358449-25.377436 25.377436-25.377436h244.360147l68.355352-58.736484-68.45768-58.634156H515.479165c-14.018987 0-25.377436-11.358449-25.377436-25.377436v-88.104727c0-14.735285-11.972419-26.605376-26.605376-26.605376-14.735285 0-26.605376 11.972419-26.605377 26.605376v88.104727c0 14.018987-11.358449 25.377436-25.377435 25.377436H302.32917v117.472969h109.184371c14.018987 0 25.377436 11.358449 25.377435 25.377435V523.921255c0 14.018987-11.358449 25.377436-25.377435 25.377436H212.075547l-67.332067 57.917857 67.332067 57.917858h199.437994c14.018987 0 25.377436 11.358449 25.377435 25.377436v202.405516z',
+    fill: 'currentColor',
+    stroke: 'none',
+    transform: 'scale(0.0234375)',
+  },
+];
 
 // 导航设施卡专用的男/女/男女厕所实心图标：源文件 1024 视口，按 24/1024 缩放到现有 24 视口
 const TOILET_FILL_PROPS = {
@@ -99,8 +110,21 @@ export const TOILET_ICON_SHAPES = {
 };
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
-// 设施图标徽标的直径，需与三处 CSS（导览图/编辑预览/全屏编辑器）的 iconOnly 尺寸一致
+// 设施图标徽标的尺寸，需与 shopLabel.less 的 iconOnly 保持一致
 export const FACILITY_LABEL_SIZE = 24;
+export const FACILITY_ICON_SIZE = 16;
+export const FACILITY_ICON_GAP = 2;
+// 单个设施徽标的宽度：图标 16 + 左右内边距 8 + 边框 2
+export const FACILITY_LABEL_WIDTH = 26;
+
+// 多个设施横向并排时，徽标宽度随图标数量线性增长
+export function facilityLabelWidth(count) {
+  const visible = Math.max(1, count);
+  return (
+    FACILITY_LABEL_WIDTH + (visible - 1) * (FACILITY_ICON_SIZE + FACILITY_ICON_GAP)
+  );
+}
+
 // 数据里用 React 的驼峰写法（strokeWidth），落到 DOM 时要转成 SVG 属性名；
 // viewBox 是大小写敏感的既有属性名，不能转
 const DOM_ATTRIBUTE_NAMES = { viewBox: 'viewBox' };
@@ -108,11 +132,7 @@ const attrNameOf = (name) =>
   DOM_ATTRIBUTE_NAMES[name] ??
   name.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`);
 
-export function createAreaTypeIconNode(type, toiletType) {
-  const shapes =
-    type === AREA_TYPE.TOILET
-      ? TOILET_ICON_SHAPES[toiletType] || TOILET_ICON_SHAPES.both
-      : AREA_TYPE_ICON_SHAPES[type];
+function createIconNode(shapes) {
   if (!shapes) return null;
 
   const svg = document.createElementNS(SVG_NS, 'svg');
@@ -127,4 +147,15 @@ export function createAreaTypeIconNode(type, toiletType) {
     svg.appendChild(node);
   }
   return svg;
+}
+
+// kind 为空表示历史设施数据没有具体设施项，用通用“公共设施”图标兜底
+export function createFacilityIconNode(kind, toiletType) {
+  if (!kind) return createIconNode(PUBLIC_FACILITY_ICON_SHAPES);
+
+  const shapes =
+    kind === FACILITY_KIND.TOILET
+      ? TOILET_ICON_SHAPES[toiletType] || TOILET_ICON_SHAPES.both
+      : AREA_TYPE_ICON_SHAPES[kind];
+  return createIconNode(shapes);
 }

@@ -1,8 +1,9 @@
 import React from "react";
-import { AREA_TYPE } from "../../lib/shopGeometry.js";
+import { AREA_TYPE, FACILITY_KIND } from "../../lib/shopGeometry.js";
 import {
   AREA_ICON_BASE_PROPS,
   AREA_TYPE_ICON_SHAPES,
+  PUBLIC_FACILITY_ICON_SHAPES,
   TOILET_ICON_SHAPES,
 } from "../../lib/areaTypeIcons.js";
 
@@ -20,8 +21,12 @@ const AreaTypeIcon = ({ type, ...props }) => (
 
 export const ShopIcon = (props) => <AreaTypeIcon type={AREA_TYPE.SHOP} {...props} />;
 
+export const PublicFacilityIcon = (props) => (
+  <IconShapes shapes={PUBLIC_FACILITY_ICON_SHAPES} {...props} />
+);
+
 export const ElevatorIcon = (props) => (
-  <AreaTypeIcon type={AREA_TYPE.ELEVATOR} {...props} />
+  <AreaTypeIcon type={FACILITY_KIND.ELEVATOR} {...props} />
 );
 
 export const MaleToiletIcon = (props) => (
@@ -37,7 +42,7 @@ export const BothToiletIcon = (props) => (
 );
 
 export const NursingIcon = (props) => (
-  <AreaTypeIcon type={AREA_TYPE.NURSING} {...props} />
+  <AreaTypeIcon type={FACILITY_KIND.NURSING} {...props} />
 );
 
 export const ObstacleIcon = (props) => (

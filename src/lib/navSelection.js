@@ -1,3 +1,9 @@
+import {
+  FACILITY_KIND,
+  FACILITY_KIND_LABEL,
+  facilityKindsOf,
+} from "./shopGeometry.js";
+
 // 楼层编号是自由文本：1F/3F 取正，B2、-1F 取负；解析不出数字的排到最后
 export function floorLevel(code) {
   const match = /^\s*([Bb])?\s*(-)?\s*(\d+)/.exec(String(code ?? ""));
@@ -61,14 +67,34 @@ export function isCrossFloor(start, end) {
   );
 }
 
+// 导航的设施选项：电梯/母婴室直接对应设施项；厕所拆成男/女/任意三种，
+// 匹配时按 facilities 数组 + toiletType 判断
+const TOILET_GENDER_MATCH = {
+  "toilet-male": new Set(["male", "both"]),
+  "toilet-female": new Set(["female", "both"]),
+};
+
 export const FACILITY_OPTIONS = [
   { value: "toilet-male", label: "男厕所" },
   { value: "toilet-female", label: "女厕所" },
-  { value: "toilet-both", label: "厕所" },
-  { value: "elevator", label: "电梯" },
-  { value: "nursing", label: "母婴室" },
+  { value: "toilet-any", label: "任意厕所" },
+  { value: FACILITY_KIND.ELEVATOR, label: FACILITY_KIND_LABEL[FACILITY_KIND.ELEVATOR] },
+  { value: FACILITY_KIND.NURSING, label: FACILITY_KIND_LABEL[FACILITY_KIND.NURSING] },
 ];
 
 export function facilityLabel(kind) {
   return FACILITY_OPTIONS.find((option) => option.value === kind)?.label || "设施";
+}
+
+// 判断某个设施区域是否匹配导航里选中的设施项；缺失 toiletType 按男女通用处理
+export function matchFacility(properties, navKind) {
+  const kinds = facilityKindsOf(properties);
+  if (!kinds.length) return false;
+  if (navKind === FACILITY_KIND.ELEVATOR) return kinds.includes(FACILITY_KIND.ELEVATOR);
+  if (navKind === FACILITY_KIND.NURSING) return kinds.includes(FACILITY_KIND.NURSING);
+  if (navKind === "toilet-any") return kinds.includes(FACILITY_KIND.TOILET);
+  const genders = TOILET_GENDER_MATCH[navKind];
+  if (!genders || !kinds.includes(FACILITY_KIND.TOILET)) return false;
+  const type = (properties?.toiletType || "").trim() || "both";
+  return genders.has(type);
 }

@@ -20,7 +20,7 @@ import styles from "./index.less";
 const FACILITY_ICONS = {
   "toilet-male": <MaleToiletIcon />,
   "toilet-female": <FemaleToiletIcon />,
-  "toilet-both": <BothToiletIcon />,
+  "toilet-any": <BothToiletIcon />,
   elevator: <ElevatorIcon />,
   nursing: <NursingIcon />,
 };

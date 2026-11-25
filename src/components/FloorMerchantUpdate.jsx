@@ -10,31 +10,50 @@ import {
 } from "antd";
 import React, { useEffect, useMemo, useState } from "react";
 import { listMerchants } from "../services/merchants.js";
-import { AREA_TYPE, AREA_TYPE_LABEL } from "../lib/shopGeometry.js";
+import {
+  AREA_TYPE,
+  AREA_TYPE_LABEL,
+  FACILITY_KIND,
+  FACILITY_KIND_LABEL,
+  FACILITY_KINDS,
+  areaTypeOf,
+  facilityKindsOf,
+} from "../lib/shopGeometry.js";
 import AreaTypeSelect from "./AreaTypeSelect/index.jsx";
 import {
   BothToiletIcon,
   ElevatorIcon,
   NursingIcon,
   ObstacleIcon,
+  PublicFacilityIcon,
   ShopIcon,
 } from "./AreaTypeSelect/icons.jsx";
 
 const AREA_TYPE_OPTIONS = [
   { value: AREA_TYPE.SHOP, label: AREA_TYPE_LABEL[AREA_TYPE.SHOP], icon: <ShopIcon /> },
   {
-    value: AREA_TYPE.ELEVATOR,
-    label: AREA_TYPE_LABEL[AREA_TYPE.ELEVATOR],
-    icon: <ElevatorIcon />,
+    value: AREA_TYPE.FACILITY,
+    label: AREA_TYPE_LABEL[AREA_TYPE.FACILITY],
+    icon: <PublicFacilityIcon />,
   },
-  { value: AREA_TYPE.TOILET, label: AREA_TYPE_LABEL[AREA_TYPE.TOILET], icon: <BothToiletIcon /> },
-  { value: AREA_TYPE.NURSING, label: AREA_TYPE_LABEL[AREA_TYPE.NURSING], icon: <NursingIcon /> },
   {
     value: AREA_TYPE.OBSTACLE,
     label: AREA_TYPE_LABEL[AREA_TYPE.OBSTACLE],
     icon: <ObstacleIcon />,
   },
 ];
+
+const FACILITY_ICONS = {
+  [FACILITY_KIND.ELEVATOR]: <ElevatorIcon />,
+  [FACILITY_KIND.TOILET]: <BothToiletIcon />,
+  [FACILITY_KIND.NURSING]: <NursingIcon />,
+};
+
+const FACILITY_OPTIONS = FACILITY_KINDS.map((kind) => ({
+  value: kind,
+  label: FACILITY_KIND_LABEL[kind],
+  icon: FACILITY_ICONS[kind],
+}));
 
 const TOILET_TYPE_OPTIONS = [
   { value: "male", label: "男厕" },
@@ -57,7 +76,8 @@ const FloorMerchantUpdate = ({
   useEffect(() => {
     if (open && editing) {
       form.setFieldsValue({
-        type: editing.type || AREA_TYPE.SHOP,
+        type: areaTypeOf(editing),
+        facilities: facilityKindsOf(editing),
         code: editing.code,
         merchantNo: editing.merchantNo,
         merchantName: editing.merchantName,
@@ -119,10 +139,19 @@ const FloorMerchantUpdate = ({
     form.setFieldsValue({ merchantName: merchant?.brandName || "" });
   };
 
-  // 区域类型联动表单：商铺走位号/商户，障碍区无字段，其余设施走名称/区域号
+  const validateFacilities = (_, value) =>
+    Array.isArray(value) && value.length
+      ? Promise.resolve()
+      : Promise.reject(new Error("请至少选择一项设施"));
+
+  // 区域类型联动表单：商铺走位号/商户，障碍区无字段，公共设施走设施项/名称
   const type = Form.useWatch("type", form) || AREA_TYPE.SHOP;
+  const facilities = Form.useWatch("facilities", form) || [];
   const isShop = type === AREA_TYPE.SHOP;
   const isObstacle = type === AREA_TYPE.OBSTACLE;
+  const isFacility = type === AREA_TYPE.FACILITY;
+  const hasElevator = facilities.includes(FACILITY_KIND.ELEVATOR);
+  const hasToilet = facilities.includes(FACILITY_KIND.TOILET);
   const drawerTitle = isShop
     ? "编辑铺位信息"
     : isObstacle
@@ -136,7 +165,7 @@ const FloorMerchantUpdate = ({
     <Drawer
       title={drawerTitle}
       placement="right"
-      width={380}
+      width={400}
       open={open}
       {...rest}
       destroyOnClose
@@ -196,8 +225,15 @@ const FloorMerchantUpdate = ({
               障碍区用于表示墙体、柱子或镂空地板：不显示地图标签，不参与铺位导航，
               并会在路径规划中作为不可通行区域。
             </Typography.Paragraph>
-          ) : (
+          ) : isFacility ? (
             <>
+              <Form.Item
+                name="facilities"
+                label="设施选项"
+                rules={[{ validator: validateFacilities }]}
+              >
+                <AreaTypeSelect multiple options={FACILITY_OPTIONS} />
+              </Form.Item>
               <Form.Item
                 name="name"
                 label="名称"
@@ -207,7 +243,7 @@ const FloorMerchantUpdate = ({
               >
                 <Input placeholder="如 公共卫生间、1 号客梯" />
               </Form.Item>
-              {type === AREA_TYPE.ELEVATOR && (
+              {hasElevator && (
                 <Form.Item
                   name="shaftId"
                   label="竖井编号"
@@ -219,7 +255,7 @@ const FloorMerchantUpdate = ({
                   <Input placeholder="如 E1" />
                 </Form.Item>
               )}
-              {type === "toilet" && (
+              {hasToilet && (
                 <Form.Item
                   name="toiletType"
                   label="厕所类型"
@@ -236,7 +272,7 @@ const FloorMerchantUpdate = ({
                 <Input placeholder="选填" />
               </Form.Item> */}
             </>
-          )}
+          ) : null}
           <Space>
             <Button type="primary" htmlType="submit">
               保存

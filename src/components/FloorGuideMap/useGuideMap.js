@@ -18,6 +18,8 @@ import { buildNavGrid, findRoute } from "../../lib/routing.js";
 import {
   AREA_TYPE,
   areaTypeOf,
+  facilityKindsOf,
+  isFacilityType,
   isObstacleFeature,
   labelPoint,
 } from "../../lib/shopGeometry.js";
@@ -356,10 +358,18 @@ export default function useGuideMap({ shops, floor }) {
 
       const merchantName = merchantNameOf(feature.properties);
       const type = areaTypeOf(feature.properties);
+      const facilityKinds = facilityKindsOf(feature.properties);
       const text = label;
       const el = document.createElement("div");
       el.className = shopLabelStyles.shopLabel;
-      renderShopLabel(el, text, merchantName, type, feature.properties.toiletType);
+      renderShopLabel(
+        el,
+        text,
+        merchantName,
+        type,
+        facilityKinds,
+        feature.properties.toiletType,
+      );
 
       const centroid = labelPoint(feature.geometry);
       const marker = new Marker({ element: el, anchor: "center" })
@@ -370,12 +380,13 @@ export default function useGuideMap({ shops, floor }) {
         uid,
         label,
         area,
+        type,
         centroid,
         el,
         marker,
         merchantName,
         merchantLabel: merchantName || merchantNoOf(feature.properties),
-        ...labelSize(text, merchantName, type),
+        ...labelSize(text, merchantName, type, facilityKinds),
       });
     }
 
@@ -422,7 +433,13 @@ export default function useGuideMap({ shops, floor }) {
       };
       const ordered = labels
         .slice()
-        .sort((a, b) => rank(b.uid) - rank(a.uid) || b.area - a.area);
+        .sort(
+          (a, b) =>
+            rank(b.uid) - rank(a.uid) ||
+            // 设施图标是导航地标，面积通常很小；先排它们，避免被大铺位标注挤掉
+            Number(isFacilityType(b.type)) - Number(isFacilityType(a.type)) ||
+            b.area - a.area,
+        );
       const placed = [];
 
       for (const item of ordered) {

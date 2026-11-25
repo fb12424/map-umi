@@ -27,18 +27,25 @@
     text-align: center;
   }
 
-  // 设施标注：24px 圆形图标徽标，只显示图标
+  // 设施标注：固定 24px 高的图标徽标，多个设施时横向并排成胶囊
   &.iconOnly {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 24px;
+    width: auto;
+    min-width: 24px;
     height: 24px;
-    border-radius: 50%;
+    box-sizing: border-box;
+    padding: 0 4px;
+    border-radius: 12px;
     background-color: #16a34a;
     color: #fff;
     font-size: 16px;
     line-height: 24px;
+  }
+
+  &.iconOnly .shopLabelCode {
+    gap: 2px;
   }
 
   // 编辑预览：重复位号

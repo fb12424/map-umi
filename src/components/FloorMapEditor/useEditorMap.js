@@ -19,6 +19,7 @@ import {
   areaTextOf,
   areaTypeOf,
   AREA_TYPE,
+  facilityKindsOf,
   labelPoint,
 } from "../../lib/shopGeometry.js";
 import { renderShopLabel } from "../../lib/shopLabel.js";
@@ -45,7 +46,7 @@ import {
   toXy,
 } from "./editorCore.js";
 
-// 编辑器标注：商铺/设施按文案显示；设施（电梯/厕所/母婴室）改为只显示类型图标徽标。
+// 编辑器标注：商铺/设施按文案显示；公共设施改为只显示一个或多个设施图标徽标。
 // 障碍区和空文案（含未命名设施）不画，避免编辑器里铺满占位文案
 function createEditorLabelElement(feature) {
   const text = areaTextOf(feature.properties);
@@ -58,6 +59,7 @@ function createEditorLabelElement(feature) {
     text,
     "",
     areaTypeOf(feature.properties),
+    facilityKindsOf(feature.properties),
     feature.properties.toiletType,
   );
 }

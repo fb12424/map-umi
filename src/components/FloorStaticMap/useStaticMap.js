@@ -17,6 +17,8 @@ import {
 import {
   AREA_TYPE,
   areaTypeOf,
+  facilityKindsOf,
+  isFacilityType,
   isObstacleFeature,
   labelPoint,
 } from "../../lib/shopGeometry.js";
@@ -172,9 +174,17 @@ export default function useStaticMap({ shops, floor }) {
       const { uid, label, area_m2: area } = feature.properties;
       const merchantName = merchantNameOf(feature.properties);
       const type = areaTypeOf(feature.properties);
+      const facilityKinds = facilityKindsOf(feature.properties);
       const el = document.createElement("div");
       el.className = shopLabelStyles.shopLabel;
-      renderShopLabel(el, label, merchantName, type, feature.properties.toiletType);
+      renderShopLabel(
+        el,
+        label,
+        merchantName,
+        type,
+        facilityKinds,
+        feature.properties.toiletType,
+      );
 
       const centroid = labelPoint(feature.geometry);
       const marker = new Marker({ element: el, anchor: "center" })
@@ -184,10 +194,11 @@ export default function useStaticMap({ shops, floor }) {
       labels.push({
         uid,
         area: area ?? 0,
+        type,
         centroid,
         el,
         marker,
-        ...labelSize(label, merchantName, type),
+        ...labelSize(label, merchantName, type, facilityKinds),
       });
     }
 
@@ -207,7 +218,10 @@ export default function useStaticMap({ shops, floor }) {
         .sort(
           (a, b) =>
             Number(b.uid === hoveredRef.current) -
-              Number(a.uid === hoveredRef.current) || b.area - a.area,
+              Number(a.uid === hoveredRef.current) ||
+            // 设施图标是导航地标，面积通常很小；先排它们，避免被大铺位标注挤掉
+            Number(isFacilityType(b.type)) - Number(isFacilityType(a.type)) ||
+            b.area - a.area,
         );
       const placed = [];
 

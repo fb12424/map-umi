@@ -21,13 +21,16 @@ import { isShopFeature, labelPoint } from "../../lib/shopGeometry.js";
 import { ADD_MIN_FREE_M2, ADD_MIN_FREE_RATIO } from "./editorCore.js";
 
 // 切线/多片拆分生成的新要素属性：商铺置空位号待录，
-// 设施沿用原类型与名称，避免把厕所/电梯拆成无名空铺位
+// 公共设施沿用原设施项与名称，避免把厕所/电梯拆成无名空铺位
 function derivedPartProps(properties) {
   if (isShopFeature(properties)) {
     return { code: "", merchantNo: "", merchantName: "" };
   }
   return {
     type: properties.type,
+    facilities: Array.isArray(properties.facilities)
+      ? [...properties.facilities]
+      : [],
     name: properties.name || "",
     areaNo: properties.areaNo || "",
     toiletType: properties.toiletType || "",

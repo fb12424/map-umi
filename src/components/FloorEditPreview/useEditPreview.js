@@ -17,6 +17,8 @@ import {
   AREA_TYPE,
   areaLabelOf,
   areaTypeOf,
+  facilityKindsOf,
+  isFacilityType,
   isObstacleFeature,
   labelPoint,
 } from "../../lib/shopGeometry.js";
@@ -283,8 +285,9 @@ export default function useEditPreview({
         uid,
         area,
         type,
+        facilityKinds: facilityKindsOf(props),
         toiletType: props.toiletType || "",
-        // 商铺沿用"位号 + 商户名"两行；设施只显示类型图标徽标
+        // 商铺沿用"位号 + 商户名"两行；公共设施只显示设施图标徽标
         merchantName: isShop ? merchantNameOf(props) : "",
         centroid: labelPoint(feature.geometry),
         // codeText 为 null 时才走"未编号/#序号"回退；设施直接给名称，避免被编号回退覆盖
@@ -300,7 +303,14 @@ export default function useEditPreview({
       el.className = isDuplicate
         ? `${shopLabelStyles.shopLabel} ${shopLabelStyles.isDuplicate}`
         : shopLabelStyles.shopLabel;
-      renderShopLabel(el, text, item.merchantName, item.type, item.toiletType);
+      renderShopLabel(
+        el,
+        text,
+        item.merchantName,
+        item.type,
+        item.facilityKinds,
+        item.toiletType,
+      );
       const marker = new Marker({ element: el, anchor: "center" })
         .setLngLat(item.centroid)
         .addTo(map);
@@ -309,7 +319,7 @@ export default function useEditPreview({
         ...item,
         el,
         marker,
-        ...labelSize(text, item.merchantName, item.type),
+        ...labelSize(text, item.merchantName, item.type, item.facilityKinds),
       });
     });
 
@@ -367,6 +377,8 @@ export default function useEditPreview({
               Number(a.uid === linkedRef.current) ||
             Number(b.uid === hoveredRef.current) -
               Number(a.uid === hoveredRef.current) ||
+            // 设施图标是导航地标，面积通常很小；先排它们，避免被大铺位标注挤掉
+            Number(isFacilityType(b.type)) - Number(isFacilityType(a.type)) ||
             b.area - a.area,
         );
       const placed = [];
@@ -447,6 +459,7 @@ export default function useEditPreview({
       onShopClickRef.current?.({
         uid: props.uid,
         type: areaTypeOf(props),
+        facilities: facilityKindsOf(props),
         code: (props.code || "").trim(),
         label: props.label || areaLabelOf(props),
         merchantNo: props.merchantNo || "",
@@ -546,8 +559,20 @@ export default function useEditPreview({
     showIndexRef.current = showUnnumberedIndex;
     for (const item of labelsRef.current) {
       const text = labelTextFor(item, showUnnumberedIndex);
-      renderShopLabel(item.el, text, item.merchantName, item.type, item.toiletType);
-      const size = labelSize(text, item.merchantName, item.type);
+      renderShopLabel(
+        item.el,
+        text,
+        item.merchantName,
+        item.type,
+        item.facilityKinds,
+        item.toiletType,
+      );
+      const size = labelSize(
+        text,
+        item.merchantName,
+        item.type,
+        item.facilityKinds,
+      );
       item.width = size.width;
       item.height = size.height;
     }

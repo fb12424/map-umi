@@ -1,29 +1,48 @@
-// 区域类型：商铺沿用位号/商户体系，其余为非商铺设施（只显示名称）；
+// 区域类型：商铺沿用位号/商户体系；公共设施用设施项集合（电梯/厕所/母婴室）描述；
 // 障碍区（墙体/柱子/镂空中庭）是纯几何占位，不显示标签也不参与导航
 export const AREA_TYPE = {
   SHOP: 'shop',
-  ELEVATOR: 'elevator',
-  TOILET: 'toilet',
-  NURSING: 'nursing',
+  FACILITY: 'facility',
   OBSTACLE: 'obstacle',
 };
 
 export const AREA_TYPE_LABEL = {
   [AREA_TYPE.SHOP]: '商铺',
-  [AREA_TYPE.ELEVATOR]: '电梯',
-  [AREA_TYPE.TOILET]: '厕所',
-  [AREA_TYPE.NURSING]: '母婴室',
+  [AREA_TYPE.FACILITY]: '公共设施',
   [AREA_TYPE.OBSTACLE]: '障碍区',
 };
 
-const NON_SHOP_TYPES = new Set(
-  Object.values(AREA_TYPE).filter((type) => type !== AREA_TYPE.SHOP),
-);
+// 公共设施下的具体设施项，数组顺序即表单和图标展示顺序
+export const FACILITY_KIND = {
+  ELEVATOR: 'elevator',
+  TOILET: 'toilet',
+  NURSING: 'nursing',
+};
+
+export const FACILITY_KIND_LABEL = {
+  [FACILITY_KIND.ELEVATOR]: '电梯',
+  [FACILITY_KIND.TOILET]: '厕所',
+  [FACILITY_KIND.NURSING]: '母婴室',
+};
+
+export const FACILITY_KINDS = Object.values(FACILITY_KIND);
+
+// 旧数据把设施直接存在 type 上（elevator/toilet/nursing），读取时统一
+// 映射成"公共设施 + 对应设施项"，保存后写回新结构
+const LEGACY_FACILITY_TYPES = {
+  [FACILITY_KIND.ELEVATOR]: FACILITY_KIND.ELEVATOR,
+  [FACILITY_KIND.TOILET]: FACILITY_KIND.TOILET,
+  [FACILITY_KIND.NURSING]: FACILITY_KIND.NURSING,
+};
 
 // 历史数据没有 type 字段，一律按商铺处理，避免老地图被当成设施
 export function areaTypeOf(properties) {
   const type = properties?.type;
-  return NON_SHOP_TYPES.has(type) ? type : AREA_TYPE.SHOP;
+  if (type === AREA_TYPE.OBSTACLE) return AREA_TYPE.OBSTACLE;
+  if (type === AREA_TYPE.FACILITY || LEGACY_FACILITY_TYPES[type]) {
+    return AREA_TYPE.FACILITY;
+  }
+  return AREA_TYPE.SHOP;
 }
 
 export function isShopFeature(properties) {
@@ -34,15 +53,40 @@ export function isObstacleFeature(properties) {
   return areaTypeOf(properties) === AREA_TYPE.OBSTACLE;
 }
 
-const FACILITY_TYPES = new Set([
-  AREA_TYPE.ELEVATOR,
-  AREA_TYPE.TOILET,
-  AREA_TYPE.NURSING,
-]);
-
-// 设施 = 非商铺且非障碍物（电梯/厕所/母婴室），标注上会带类型图标
+// 设施 = 公共设施（电梯/厕所/母婴室），标注上会带一个或多个类型图标
 export function isFacilityType(type) {
-  return FACILITY_TYPES.has(type);
+  return type === AREA_TYPE.FACILITY || Boolean(LEGACY_FACILITY_TYPES[type]);
+}
+
+// 过滤未知值、去重并按固定顺序排列，表单回填和预览共用
+export function normalizeFacilityKinds(value) {
+  if (!Array.isArray(value)) return [];
+  const selected = new Set(value);
+  return FACILITY_KINDS.filter((kind) => selected.has(kind));
+}
+
+// MapLibre 的 queryRenderedFeatures 会把数组/对象属性序列化成 JSON 字符串，
+// 这里两种形态都要认，否则从地图点击回填时设施项会丢
+function readFacilityKinds(value) {
+  if (Array.isArray(value)) return normalizeFacilityKinds(value);
+  if (typeof value === 'string') {
+    try {
+      return normalizeFacilityKinds(JSON.parse(value));
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+export function facilityKindsOf(properties) {
+  if (areaTypeOf(properties) !== AREA_TYPE.FACILITY) return [];
+  const stored = properties?.facilities;
+  if (Array.isArray(stored) || typeof stored === 'string') {
+    return readFacilityKinds(stored);
+  }
+  const legacyKind = LEGACY_FACILITY_TYPES[properties?.type];
+  return legacyKind ? [legacyKind] : [];
 }
 
 // label 派生规则：商铺=铺位号，设施=名称；障碍区没有标签
@@ -218,6 +262,8 @@ export function normalizeShopData(geojson) {
     feature.properties = { ...feature.properties, uid };
 
     const type = areaTypeOf(feature.properties);
+    const facilities =
+      type === AREA_TYPE.FACILITY ? facilityKindsOf(feature.properties) : [];
     const code = (feature.properties?.code || '').trim();
     const area = Number(feature.properties?.area_m2);
 
@@ -227,6 +273,7 @@ export function normalizeShopData(geojson) {
       properties: {
         ...feature.properties,
         type,
+        facilities,
         code,
         label: areaLabelOf({ ...feature.properties, type, code }),
         area_m2: Number.isFinite(area) ? area : 0,

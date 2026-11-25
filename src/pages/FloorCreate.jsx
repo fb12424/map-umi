@@ -24,7 +24,7 @@ import {
   deriveFloorFromShops,
   normalizeOutlineGeoJson,
 } from "../lib/floorGeometry.js";
-import { AREA_TYPE, areaTypeOf, findDuplicateCodes, normalizeShopData } from "../lib/shopGeometry.js";
+import { AREA_TYPE, FACILITY_KIND, areaTypeOf, findDuplicateCodes, normalizeFacilityKinds, normalizeShopData } from "../lib/shopGeometry.js";
 import pageStyles from "../styles/page.less";
 import styles from "./FloorCreate.less";
 import {
@@ -200,21 +200,25 @@ export default function FloorCreate() {
   const handleEditSave = (values) => {
     if (!editing) return;
 
-    const type = values.type || "shop";
-    const isShop = type === "shop";
-    const isObstacle = type === "obstacle";
-    // 商铺保留位号/商户体系，设施只保留名称/区域号；切换类型时把另一套清空，避免脏字段残留。
+    const type = values.type || AREA_TYPE.SHOP;
+    const isShop = type === AREA_TYPE.SHOP;
+    const isObstacle = type === AREA_TYPE.OBSTACLE;
+    const isFacility = type === AREA_TYPE.FACILITY;
+    // 商铺保留位号/商户体系，公共设施只保留设施项/名称/区域号；切换类型时把另一套清空，避免脏字段残留。
     // 障碍区是纯几何占位，位号、名称、商户全部清空，地图上也不出标签
+    const facilities = isFacility
+      ? normalizeFacilityKinds(values.facilities)
+      : [];
     const nextCode = isShop ? (values.code || "").trim() : "";
     const merchantNo = isShop ? (values.merchantNo || "").trim() : "";
     const merchantName = isShop ? (values.merchantName || "").trim() : "";
-    const name =
-      isShop || isObstacle ? "" : (values.name || "").trim();
-    const areaNo =
-      isShop || isObstacle ? "" : (values.areaNo || "").trim();
-    const toiletType = type === "toilet" ? values.toiletType || "" : "";
-    const shaftId =
-      type === AREA_TYPE.ELEVATOR ? (values.shaftId || "").trim() : "";
+    const name = isFacility ? (values.name || "").trim() : "";
+    const areaNo = isFacility ? (values.areaNo || "").trim() : "";
+    const toiletType =
+      facilities.includes(FACILITY_KIND.TOILET) ? values.toiletType || "" : "";
+    const shaftId = facilities.includes(FACILITY_KIND.ELEVATOR)
+      ? (values.shaftId || "").trim()
+      : "";
     const label = isShop
       ? nextCode || "未编号"
       : isObstacle
@@ -223,6 +227,7 @@ export default function FloorCreate() {
 
     const patchProps = {
       type,
+      facilities,
       code: nextCode,
       merchantNo,
       merchantName,
@@ -269,7 +274,7 @@ export default function FloorCreate() {
     message.success(
       isObstacle
         ? "已更新障碍区信息"
-        : `已更新${isShop ? "铺位" : "设施"} ${label} 的信息`,
+        : `已更新${isShop ? "铺位" : "公共设施"} ${label} 的信息`,
     );
     setEditing(null);
   };
