@@ -23,7 +23,7 @@ import {
   isObstacleFeature,
   labelPoint,
 } from "../../lib/shopGeometry.js";
-import { arrowSamples, measureRoute } from "../../lib/routeFlow.js";
+import { measureRoute, routeDotSamples } from "../../lib/routeFlow.js";
 import { labelSize, renderShopLabel } from "../../lib/shopLabel.js";
 import shopLabelStyles from "../../lib/shopLabel.less";
 import pinStyles from "./FloorStaticMap.less";
@@ -247,7 +247,6 @@ export default function useStaticMap({
       paint: { "line-color": NAV_ROUTE_COLOR, "line-width": 4.5 },
     });
 
-    // ensureArrowImage(map);
     map.addSource(ROUTE_DOT_SOURCE, {
       type: "geojson",
       data: { type: "FeatureCollection", features: [] },
@@ -275,19 +274,19 @@ export default function useStaticMap({
       });
     }
 
-    // 箭头沿路线匀速前进并从起点回绕，形成循环的指向动效
+    // 圆点沿路线匀速前进并从起点回绕，形成循环流动效果
     const routeMetrics = route?.length ? measureRoute(route) : null;
-    let arrowFrame = 0;
-    let arrowAt = 0;
-    let arrowTraveled = 0;
+    let dotFrame = 0;
+    let dotAt = 0;
+    let dotTraveled = 0;
 
-    const pushArrowFrame = () => {
+    const pushDotFrame = () => {
       if (!routeMetrics) return;
-      const features = arrowSamples(routeMetrics, arrowTraveled).map(
-        ({ lng, lat, bearing }) => ({
+      const features = routeDotSamples(routeMetrics, dotTraveled).map(
+        (coordinates) => ({
           type: "Feature",
-          geometry: { type: "Point", coordinates: [lng, lat] },
-          properties: { bearing },
+          geometry: { type: "Point", coordinates },
+          properties: {},
         }),
       );
       map.getSource(ROUTE_DOT_SOURCE)?.setData({
@@ -298,21 +297,21 @@ export default function useStaticMap({
 
     if (routeMetrics) {
       const speed = Math.min(Math.max(routeMetrics.total / 5, 6), 20); // 米/秒
-      pushArrowFrame();
-      const animateArrows = (timestamp) => {
-        arrowFrame = requestAnimationFrame(animateArrows);
-        if (!arrowAt) {
-          arrowAt = timestamp;
+      pushDotFrame();
+      const animateDots = (timestamp) => {
+        dotFrame = requestAnimationFrame(animateDots);
+        if (!dotAt) {
+          dotAt = timestamp;
           return;
         }
         // 约 25fps 刷新一次，低配机器上不跟屏幕刷新率抢 geojson 重建
-        const delta = Math.min(timestamp - arrowAt, 120);
+        const delta = Math.min(timestamp - dotAt, 120);
         if (delta < 40) return;
-        arrowAt = timestamp;
-        arrowTraveled += (delta / 1000) * speed;
-        pushArrowFrame();
+        dotAt = timestamp;
+        dotTraveled += (delta / 1000) * speed;
+        pushDotFrame();
       };
-      arrowFrame = requestAnimationFrame(animateArrows);
+      dotFrame = requestAnimationFrame(animateDots);
     }
 
     for (const pin of pins ?? []) {
@@ -451,7 +450,7 @@ export default function useStaticMap({
     return () => {
       if (mapRef.current !== map) return;
       cancelAnimationFrame(fitFrame);
-      cancelAnimationFrame(arrowFrame);
+      cancelAnimationFrame(dotFrame);
       map.off("move", updateLabels);
       map.off("resize", updateLabels);
       map.off("mousemove", onMouseMove);
