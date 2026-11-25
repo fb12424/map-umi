@@ -3,8 +3,10 @@ import {
   FACILITY_KIND,
   facilityKindsOf,
   labelPoint,
+  normalizeShopData,
 } from "./shopGeometry.js";
 import { floorLevel, matchFacility } from "./navSelection.js";
+import { getMapGeoJson } from "../services/maps.js";
 
 export const ELEVATOR_WAIT_SEC = 25;
 export const ELEVATOR_PER_FLOOR_SEC = 8;
@@ -36,6 +38,24 @@ export function elevatorShafts(features) {
     result.push({ shaftId, feature });
   }
   return result;
+}
+
+// 换乘要覆盖所有楼层，但中间楼层只需要电梯清单：按楼层缓存 geojson 解析结果，
+// 真正的场景与栅格等到路线经过时再加载
+const shaftInventoryCache = new Map();
+
+export function loadFloorShafts(floorId) {
+  let pending = shaftInventoryCache.get(floorId);
+  if (!pending) {
+    pending = getMapGeoJson(floorId)
+      .then((raw) => elevatorShafts(normalizeShopData(raw ?? { features: [] }).features))
+      .catch((error) => {
+        shaftInventoryCache.delete(floorId);
+        throw error;
+      });
+    shaftInventoryCache.set(floorId, pending);
+  }
+  return pending;
 }
 
 function featureRings(feature) {
@@ -152,18 +172,357 @@ export function computeFacilityRoute({
     steps: [],
     distance: best.route.distance,
     duration: best.route.duration,
-    shaftId: null,
-    shaftName: null,
+    rides: [],
     facilityFeature: best.feature,
   };
 }
 
-// 商铺终点：同层直接找路；跨层按竖井筛选 + 总代价比较（P0 单次乘梯）
-export function computeNavigationRoute({
+function shaftNameOf(feature, shaftId) {
+  return (feature?.properties?.name || "").trim() || shaftId;
+}
+
+const NODE_SEP = "\u0000";
+
+function nodeKey(floorKey, shaftId) {
+  return `${floorKey}${NODE_SEP}${shaftId}`;
+}
+
+function parseNodeKey(key) {
+  const at = key.indexOf(NODE_SEP);
+  return { floorKey: key.slice(0, at), shaftId: key.slice(at + 1) };
+}
+
+function buildShaftGraph(inventory) {
+  const floors = new Map();
+  const byShaft = new Map();
+  for (const entry of inventory ?? []) {
+    const floorKey = String(entry.floorId);
+    const shafts = new Map();
+    for (const shaft of entry.shafts ?? []) {
+      shafts.set(shaft.shaftId, shaft.feature);
+      const list = byShaft.get(shaft.shaftId) ?? [];
+      list.push({
+        floorId: entry.floorId,
+        floorCode: entry.floorCode,
+        feature: shaft.feature,
+      });
+      byShaft.set(shaft.shaftId, list);
+    }
+    floors.set(floorKey, {
+      floorId: entry.floorId,
+      floorCode: entry.floorCode,
+      shafts,
+    });
+  }
+  return { floors, byShaft };
+}
+
+// 换乘规划：节点是"楼层×竖井"，边是乘梯（同竖井跨层）和同层步行，
+// 用 Dijkstra 按总时间找最优组合；经过的楼层才加载场景、建栅格
+async function planTransferRoute({
   startScene,
   endScene,
   startFeature,
   endFeature,
+  inventory,
+  loadScene,
+  halfWidth,
+}) {
+  const { floors, byShaft } = buildShaftGraph(inventory);
+  const startKey = String(startScene.floorId);
+  const endKey = String(endScene.floorId);
+  if (!floors.has(startKey) || !floors.has(endKey)) {
+    throw new Error("楼层数据不完整，无法规划换乘路线");
+  }
+
+  const sceneCache = new Map([
+    [startKey, startScene],
+    [endKey, endScene],
+  ]);
+  const gridCache = new Map();
+  const portalCache = new Map();
+  const transferWalkCache = new Map();
+
+  const sceneOf = async (floorKey) => {
+    if (!sceneCache.has(floorKey)) {
+      const entry = floors.get(floorKey);
+      sceneCache.set(floorKey, await loadScene(entry.floorId));
+    }
+    return sceneCache.get(floorKey);
+  };
+  const gridOf = async (floorKey) => {
+    if (!gridCache.has(floorKey)) {
+      gridCache.set(floorKey, navGridOf(await sceneOf(floorKey)));
+    }
+    return gridCache.get(floorKey);
+  };
+  const portalOf = async (floorKey, shaftId) => {
+    const key = nodeKey(floorKey, shaftId);
+    if (!portalCache.has(key)) {
+      const feature = floors.get(floorKey)?.shafts.get(shaftId);
+      const portal = feature ? portalPoint(await gridOf(floorKey), feature) : null;
+      portalCache.set(key, portal);
+    }
+    return portalCache.get(key);
+  };
+  const walkOf = async (floorKey, fromLngLat, toLngLat) => {
+    const grid = await gridOf(floorKey);
+    try {
+      return findRoute(grid, fromLngLat, toLngLat, { halfWidth });
+    } catch {
+      return null;
+    }
+  };
+  const transferWalkOf = async (floorKey, fromShaftId, toShaftId) => {
+    const key = `${floorKey}${NODE_SEP}${fromShaftId}->${toShaftId}`;
+    if (!transferWalkCache.has(key)) {
+      const from = await portalOf(floorKey, fromShaftId);
+      const to = await portalOf(floorKey, toShaftId);
+      transferWalkCache.set(
+        key,
+        from && to ? await walkOf(floorKey, from.lngLat, to.lngLat) : null,
+      );
+    }
+    return transferWalkCache.get(key);
+  };
+
+  const START = "__start__";
+  const dist = new Map([[START, 0]]);
+  const prev = new Map();
+  const settled = new Set();
+  const queue = [START];
+  let best = null;
+
+  const relax = (key, cost, prevKey, edge) => {
+    if (settled.has(key)) return;
+    const known = dist.get(key);
+    if (known !== undefined && known <= cost) return;
+    dist.set(key, cost);
+    prev.set(key, { prevKey, edge });
+    if (!queue.includes(key)) queue.push(key);
+  };
+
+  const popMin = () => {
+    let bestIndex = -1;
+    let bestCost = Infinity;
+    for (let i = 0; i < queue.length; i += 1) {
+      const cost = dist.get(queue[i]);
+      if (cost !== undefined && cost < bestCost) {
+        bestCost = cost;
+        bestIndex = i;
+      }
+    }
+    return bestIndex < 0 ? null : queue.splice(bestIndex, 1)[0];
+  };
+
+  while (queue.length) {
+    const key = popMin();
+    if (key === null) break;
+    const cost = dist.get(key);
+    if (best && cost >= best.cost) break;
+    if (settled.has(key)) continue;
+    settled.add(key);
+
+    if (key === START) {
+      const startPoint = labelPoint(startFeature.geometry);
+      for (const [shaftId] of floors.get(startKey).shafts) {
+        const portal = await portalOf(startKey, shaftId);
+        if (!portal) continue;
+        const route = await walkOf(startKey, startPoint, portal.lngLat);
+        if (!route) continue;
+        relax(nodeKey(startKey, shaftId), cost + route.duration, START, {
+          kind: "walk",
+          floorKey: startKey,
+          route,
+          toShaftId: shaftId,
+        });
+      }
+      continue;
+    }
+
+    const { floorKey, shaftId } = parseNodeKey(key);
+    const floor = floors.get(floorKey);
+    const floorCode = floor.floorCode;
+
+    if (floorKey === endKey) {
+      const portal = await portalOf(floorKey, shaftId);
+      if (portal) {
+        const route = await walkOf(
+          floorKey,
+          portal.lngLat,
+          labelPoint(endFeature.geometry),
+        );
+        if (route) {
+          const total = cost + route.duration;
+          if (!best || total < best.cost) {
+            best = {
+              cost: total,
+              endKey: key,
+              endEdge: { kind: "walk", floorKey, route },
+            };
+          }
+        }
+      }
+    }
+
+    const currentPortal = await portalOf(floorKey, shaftId);
+    if (!currentPortal) continue;
+
+    for (const other of byShaft.get(shaftId) ?? []) {
+      const otherKey = String(other.floorId);
+      if (otherKey === floorKey) continue;
+      const rideSec =
+        ELEVATOR_PER_FLOOR_SEC * levelGap(floorCode, other.floorCode);
+      relax(
+        nodeKey(otherKey, shaftId),
+        cost + ELEVATOR_WAIT_SEC + rideSec,
+        key,
+        {
+          kind: "connector",
+          shaftId,
+          // 乘梯文案取上梯楼层该电梯的名称，和乘客看到的标识一致
+          shaftName: shaftNameOf(floor.shafts.get(shaftId), shaftId),
+          fromFloorKey: floorKey,
+          toFloorKey: otherKey,
+          waitSec: ELEVATOR_WAIT_SEC,
+          rideSec,
+        },
+      );
+    }
+
+    for (const [otherShaftId, otherFeature] of floor.shafts) {
+      if (otherShaftId === shaftId) continue;
+      const route = await transferWalkOf(floorKey, shaftId, otherShaftId);
+      if (!route) continue;
+      relax(nodeKey(floorKey, otherShaftId), cost + route.duration, key, {
+        kind: "walk",
+        floorKey,
+        route,
+        fromShaftId: shaftId,
+        toShaftId: otherShaftId,
+        fromShaftName: shaftNameOf(floor.shafts.get(shaftId), shaftId),
+        toShaftName: shaftNameOf(otherFeature, otherShaftId),
+      });
+    }
+  }
+
+  if (!best) throw new Error("当前电梯网络无法换乘到达目标楼层");
+
+  const edges = [];
+  let cursor = best.endKey;
+  while (cursor !== START) {
+    const step = prev.get(cursor);
+    if (!step) throw new Error("换乘路线生成失败");
+    edges.push(step.edge);
+    cursor = step.prevKey;
+  }
+  edges.reverse();
+  edges.push(best.endEdge);
+
+  const segments = [];
+  const rides = [];
+  let distance = 0;
+  let duration = 0;
+  let startPoint = null;
+  let endPoint = null;
+
+  for (const edge of edges) {
+    if (edge.kind === "walk") {
+      segments.push({
+        kind: "walk",
+        floorId: floors.get(edge.floorKey).floorId,
+        coordinates: edge.route.coordinates,
+      });
+      distance += edge.route.distance;
+      duration += edge.route.duration;
+      if (!startPoint) startPoint = edge.route.startPoint;
+      endPoint = edge.route.endPoint;
+      continue;
+    }
+
+    const fromPortal = await portalOf(edge.fromFloorKey, edge.shaftId);
+    const toPortal = await portalOf(edge.toFloorKey, edge.shaftId);
+    if (!fromPortal || !toPortal) throw new Error("换乘路线生成失败");
+
+    segments.push({
+      kind: "connector",
+      shaftId: edge.shaftId,
+      shaftName: edge.shaftName,
+      fromFloorId: floors.get(edge.fromFloorKey).floorId,
+      toFloorId: floors.get(edge.toFloorKey).floorId,
+      from: fromPortal.lngLat,
+      to: toPortal.lngLat,
+      waitSec: edge.waitSec,
+      rideSec: edge.rideSec,
+    });
+    rides.push({
+      shaftId: edge.shaftId,
+      shaftName: edge.shaftName,
+      fromFloorId: floors.get(edge.fromFloorKey).floorId,
+      toFloorId: floors.get(edge.toFloorKey).floorId,
+      waitSec: edge.waitSec,
+      rideSec: edge.rideSec,
+    });
+    duration += edge.waitSec + edge.rideSec;
+  }
+
+  const steps = [
+    {
+      floorId: startScene.floorId,
+      floorCode: startScene.floorCode,
+      role: "start",
+    },
+  ];
+  let rideLabel = "";
+  for (const edge of edges) {
+    if (edge.kind === "connector") {
+      rideLabel = `乘 ${edge.shaftName}`;
+      continue;
+    }
+    if (!edge.toShaftId || edge.floorKey === startKey || edge.floorKey === endKey) {
+      continue;
+    }
+    const entry = floors.get(edge.floorKey);
+    steps.push({
+      floorId: entry.floorId,
+      floorCode: entry.floorCode,
+      role: "transfer",
+      connectorLabel: rideLabel,
+      label: `${edge.fromShaftName} → ${edge.toShaftName}`,
+    });
+    rideLabel = "";
+  }
+  steps.push({
+    floorId: endScene.floorId,
+    floorCode: endScene.floorCode,
+    role: "end",
+    connectorLabel: rideLabel,
+  });
+
+  return {
+    sameFloor: false,
+    startFloorId: startScene.floorId,
+    endFloorId: endScene.floorId,
+    startFloorCode: startScene.floorCode,
+    endFloorCode: endScene.floorCode,
+    startPoint,
+    endPoint,
+    segments,
+    steps,
+    distance,
+    duration,
+    rides,
+  };
+}
+
+// 商铺终点：同层直接找路；跨层在"楼层×竖井"电梯网络上找时间最短的组合
+export async function computeNavigationRoute({
+  startScene,
+  endScene,
+  startFeature,
+  endFeature,
+  inventory,
+  loadScene,
   halfWidth = 0.4,
 }) {
   const startFloorId = startScene.floorId;
@@ -192,98 +551,17 @@ export function computeNavigationRoute({
       steps: [],
       distance: route.distance,
       duration: route.duration,
-      shaftId: null,
-      shaftName: null,
+      rides: [],
     };
   }
 
-  const gridA = navGridOf(startScene);
-  const gridB = navGridOf(endScene);
-  const byIdB = new Map(
-    elevatorShafts(endScene.shops.features).map((s) => [s.shaftId, s.feature]),
-  );
-
-  let best = null;
-  for (const a of elevatorShafts(startScene.shops.features)) {
-    const bFeature = byIdB.get(a.shaftId);
-    if (!bFeature) continue;
-    const portalA = portalPoint(gridA, a.feature);
-    const portalB = portalPoint(gridB, bFeature);
-    if (!portalA || !portalB) continue;
-    try {
-      const legA = findRoute(
-        gridA,
-        labelPoint(startFeature.geometry),
-        portalA.lngLat,
-        { halfWidth },
-      );
-      const legB = findRoute(
-        gridB,
-        portalB.lngLat,
-        labelPoint(endFeature.geometry),
-        { halfWidth },
-      );
-      const rideSec =
-        ELEVATOR_WAIT_SEC +
-        ELEVATOR_PER_FLOOR_SEC * levelGap(startFloorCode, endFloorCode);
-      const cost = legA.duration + rideSec + legB.duration;
-      if (!best || cost < best.cost) {
-        best = {
-          shaftId: a.shaftId,
-          shaftName: (a.feature.properties?.name || "").trim() || a.shaftId,
-          legA,
-          legB,
-          portalA,
-          portalB,
-          rideSec,
-          cost,
-        };
-      }
-    } catch {
-      // 该电梯组合不可达，跳过
-    }
-  }
-
-  if (!best) throw new Error("两楼层之间没有可用的电梯，暂无法跨层导航");
-
-  return {
-    sameFloor: false,
-    startFloorId,
-    endFloorId,
-    startFloorCode,
-    endFloorCode,
-    startPoint: best.legA.startPoint,
-    endPoint: best.legB.endPoint,
-    segments: [
-      {
-        kind: "walk",
-        floorId: startFloorId,
-        coordinates: best.legA.coordinates,
-      },
-      {
-        kind: "connector",
-        shaftId: best.shaftId,
-        shaftName: best.shaftName,
-        fromFloorId: startFloorId,
-        toFloorId: endFloorId,
-        from: best.portalA.lngLat,
-        to: best.portalB.lngLat,
-        waitSec: ELEVATOR_WAIT_SEC,
-        rideSec: best.rideSec,
-      },
-      {
-        kind: "walk",
-        floorId: endFloorId,
-        coordinates: best.legB.coordinates,
-      },
-    ],
-    steps: [
-      { floorId: startFloorId, floorCode: startFloorCode, role: "start" },
-      { floorId: endFloorId, floorCode: endFloorCode, role: "end" },
-    ],
-    distance: best.legA.distance + best.legB.distance,
-    duration: best.legA.duration + best.rideSec + best.legB.duration,
-    shaftId: best.shaftId,
-    shaftName: best.shaftName,
-  };
+  return planTransferRoute({
+    startScene,
+    endScene,
+    startFeature,
+    endFeature,
+    inventory,
+    loadScene,
+    halfWidth,
+  });
 }

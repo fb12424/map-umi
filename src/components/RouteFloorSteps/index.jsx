@@ -9,7 +9,6 @@ const ROLE_LABEL = {
 
 export default function RouteFloorSteps({
   steps = [],
-  connectorLabel = "",
   activeFloorId,
   onChangeFloor,
 }) {
@@ -21,7 +20,7 @@ export default function RouteFloorSteps({
         <Fragment key={step.floorId}>
           {index > 0 && (
             <span className={styles.connector} aria-hidden="true">
-              {index === 1 && connectorLabel ? connectorLabel : "·"}
+              {step.connectorLabel || "·"}
             </span>
           )}
           <button

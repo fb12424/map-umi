@@ -8,6 +8,8 @@ import { loadFloorScene } from "../lib/floorScene.js";
 import {
   computeFacilityRoute,
   computeNavigationRoute,
+  elevatorShafts,
+  loadFloorShafts,
 } from "../lib/crossFloorRouting.js";
 import {
   availableFacilityKinds,
@@ -163,7 +165,47 @@ export default function FloorOverview() {
           );
           if (!endFeature) throw new Error("终点铺位未在该楼层地图中找到");
 
-          plan = computeNavigationRoute({
+          const crossFloor = startFloor.id !== endFloor.id;
+          const floorById = new Map(floors.map((floor) => [floor.id, floor]));
+          const ensureScene = crossFloor
+            ? async (floorId) => {
+                const detail = await loadSceneCached(floorId);
+                return {
+                  floorId,
+                  floorCode: floorById.get(floorId)?.floorCode ?? "",
+                  shops: detail.shops,
+                  floor: detail.floor,
+                };
+              }
+            : null;
+          const inventory = crossFloor
+            ? await Promise.all(
+                floors.map(async (floor) => {
+                  if (floor.id === startFloor.id) {
+                    return {
+                      floorId: floor.id,
+                      floorCode: floor.floorCode,
+                      shafts: elevatorShafts(startScene.shops.features),
+                    };
+                  }
+                  if (floor.id === endFloor.id) {
+                    return {
+                      floorId: floor.id,
+                      floorCode: floor.floorCode,
+                      shafts: elevatorShafts(endScene.shops.features),
+                    };
+                  }
+                  const shafts = await loadFloorShafts(floor.id).catch(() => []);
+                  return {
+                    floorId: floor.id,
+                    floorCode: floor.floorCode,
+                    shafts,
+                  };
+                }),
+              )
+            : [];
+
+          plan = await computeNavigationRoute({
             startScene: {
               floorId: startFloor.id,
               floorCode: startFloor.floorCode,
@@ -178,6 +220,8 @@ export default function FloorOverview() {
             },
             startFeature,
             endFeature,
+            inventory,
+            loadScene: ensureScene,
           });
         } else {
           // 设施终点：只在起点所在楼层（即当前楼层）寻找
@@ -281,7 +325,10 @@ export default function FloorOverview() {
     if (navRoute?.error) return navRoute.error;
     const plan = navRoute?.plan;
     if (!plan) return "";
-    const ride = plan.shaftName ? ` · 乘 ${plan.shaftName}` : "";
+    const rides = plan.rides ?? [];
+    const ride = rides.length
+      ? ` · 乘 ${rides.map((item) => item.shaftName).join(" → ")}`
+      : "";
     return `${Math.round(plan.distance)} m · 约 ${formatDuration(
       plan.duration,
     )}${ride}`;
@@ -331,11 +378,6 @@ export default function FloorOverview() {
           : step.label || "",
     }));
   }, [navRoute, navStartLabel, navEndLabel]);
-
-  const connectorLabel = useMemo(() => {
-    const plan = navRoute?.plan;
-    return plan?.shaftName ? `乘 ${plan.shaftName}` : "";
-  }, [navRoute]);
 
   const listBody = () => {
     if (listError) {
@@ -422,7 +464,6 @@ export default function FloorOverview() {
 
           <RouteFloorSteps
             steps={routeSteps}
-            connectorLabel={connectorLabel}
             activeFloorId={activeId}
             onChangeFloor={setActiveId}
           />
@@ -497,6 +538,19 @@ export default function FloorOverview() {
                   <span>{navEndLabel}</span>
                   {navRoute?.plan && !navRoute.plan.sameFloor && (
                     <Tag color="blue">跨层</Tag>
+                  )}
+                  {navRoute?.plan?.steps?.some(
+                    (step) => step.role === "transfer",
+                  ) && (
+                    <Tag color="orange">
+                      换乘{" "}
+                      {
+                        navRoute.plan.steps.filter(
+                          (step) => step.role === "transfer",
+                        ).length
+                      }{" "}
+                      次
+                    </Tag>
                   )}
                 </div>
                 <div
