@@ -1,0 +1,14 @@
+.mapWrap {
+  position: relative;
+  flex: 1;
+  min-height: 520px;
+  overflow: hidden;
+  background: #eef1f6;
+
+  // MapLibre 会给容器加 .maplibregl-map（position: relative），
+  // 嵌套一层保证定位在其内部生效
+  .map {
+    position: absolute;
+    inset: 0;
+  }
+}

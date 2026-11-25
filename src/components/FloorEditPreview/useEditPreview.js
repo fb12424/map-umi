@@ -283,6 +283,7 @@ export default function useEditPreview({
         uid,
         area,
         type,
+        toiletType: props.toiletType || "",
         // 商铺沿用"位号 + 商户名"两行；设施只显示类型图标徽标
         merchantName: isShop ? merchantNameOf(props) : "",
         centroid: labelPoint(feature.geometry),
@@ -299,7 +300,7 @@ export default function useEditPreview({
       el.className = isDuplicate
         ? `${shopLabelStyles.shopLabel} ${shopLabelStyles.isDuplicate}`
         : shopLabelStyles.shopLabel;
-      renderShopLabel(el, text, item.merchantName, item.type);
+      renderShopLabel(el, text, item.merchantName, item.type, item.toiletType);
       const marker = new Marker({ element: el, anchor: "center" })
         .setLngLat(item.centroid)
         .addTo(map);
@@ -453,6 +454,7 @@ export default function useEditPreview({
         name: (props.name || "").trim(),
         areaNo: (props.areaNo || "").trim(),
         toiletType: props.toiletType || "",
+        shaftId: (props.shaftId || "").trim(),
       });
     };
 
@@ -544,7 +546,7 @@ export default function useEditPreview({
     showIndexRef.current = showUnnumberedIndex;
     for (const item of labelsRef.current) {
       const text = labelTextFor(item, showUnnumberedIndex);
-      renderShopLabel(item.el, text, item.merchantName, item.type);
+      renderShopLabel(item.el, text, item.merchantName, item.type, item.toiletType);
       const size = labelSize(text, item.merchantName, item.type);
       item.width = size.width;
       item.height = size.height;

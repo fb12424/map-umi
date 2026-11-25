@@ -27,6 +27,7 @@ module.exports = {
       routes: [
         { path: '/', redirect: '/floors' },
         { path: '/floors', component: '@/pages/FloorList' },
+        { path: '/overview', component: '@/pages/FloorOverview' },
         { path: '/floors/new', component: '@/pages/FloorCreate' },
         { path: '/floors/:floorId/edit', component: '@/pages/FloorCreate' },
         { path: '/floors/:floorId/preview', component: '@/pages/FloorPreview' },

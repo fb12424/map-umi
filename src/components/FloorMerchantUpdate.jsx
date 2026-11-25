@@ -13,11 +13,11 @@ import { listMerchants } from "../services/merchants.js";
 import { AREA_TYPE, AREA_TYPE_LABEL } from "../lib/shopGeometry.js";
 import AreaTypeSelect from "./AreaTypeSelect/index.jsx";
 import {
+  BothToiletIcon,
   ElevatorIcon,
   NursingIcon,
   ObstacleIcon,
   ShopIcon,
-  ToiletIcon,
 } from "./AreaTypeSelect/icons.jsx";
 
 const AREA_TYPE_OPTIONS = [
@@ -27,7 +27,7 @@ const AREA_TYPE_OPTIONS = [
     label: AREA_TYPE_LABEL[AREA_TYPE.ELEVATOR],
     icon: <ElevatorIcon />,
   },
-  { value: AREA_TYPE.TOILET, label: AREA_TYPE_LABEL[AREA_TYPE.TOILET], icon: <ToiletIcon /> },
+  { value: AREA_TYPE.TOILET, label: AREA_TYPE_LABEL[AREA_TYPE.TOILET], icon: <BothToiletIcon /> },
   { value: AREA_TYPE.NURSING, label: AREA_TYPE_LABEL[AREA_TYPE.NURSING], icon: <NursingIcon /> },
   {
     value: AREA_TYPE.OBSTACLE,
@@ -64,6 +64,7 @@ const FloorMerchantUpdate = ({
         name: editing.name,
         areaNo: editing.areaNo,
         toiletType: editing.toiletType,
+        shaftId: editing.shaftId,
       });
     }
   }, [open, editing]);
@@ -206,6 +207,18 @@ const FloorMerchantUpdate = ({
               >
                 <Input placeholder="如 公共卫生间、1 号客梯" />
               </Form.Item>
+              {type === AREA_TYPE.ELEVATOR && (
+                <Form.Item
+                  name="shaftId"
+                  label="竖井编号"
+                  extra="同一部电梯在各楼层填相同编号，用于跨层导航"
+                  rules={[
+                    { required: true, whitespace: true, message: "请输入竖井编号" },
+                  ]}
+                >
+                  <Input placeholder="如 E1" />
+                </Form.Item>
+              )}
               {type === "toilet" && (
                 <Form.Item
                   name="toiletType"

@@ -359,7 +359,7 @@ export default function useGuideMap({ shops, floor }) {
       const text = label;
       const el = document.createElement("div");
       el.className = shopLabelStyles.shopLabel;
-      renderShopLabel(el, text, merchantName, type);
+      renderShopLabel(el, text, merchantName, type, feature.properties.toiletType);
 
       const centroid = labelPoint(feature.geometry);
       const marker = new Marker({ element: el, anchor: "center" })

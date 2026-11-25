@@ -24,7 +24,7 @@ import {
   deriveFloorFromShops,
   normalizeOutlineGeoJson,
 } from "../lib/floorGeometry.js";
-import { areaTypeOf, findDuplicateCodes, normalizeShopData } from "../lib/shopGeometry.js";
+import { AREA_TYPE, areaTypeOf, findDuplicateCodes, normalizeShopData } from "../lib/shopGeometry.js";
 import pageStyles from "../styles/page.less";
 import styles from "./FloorCreate.less";
 import {
@@ -34,6 +34,7 @@ import {
   getMapOutline,
   updateMap,
 } from "../services/maps.js";
+import { LeftOutlined } from "@ant-design/icons";
 
 // 商铺个数只数商铺，设施（电梯/厕所/母婴）不计入
 function countShopFeatures(features = []) {
@@ -212,6 +213,8 @@ export default function FloorCreate() {
     const areaNo =
       isShop || isObstacle ? "" : (values.areaNo || "").trim();
     const toiletType = type === "toilet" ? values.toiletType || "" : "";
+    const shaftId =
+      type === AREA_TYPE.ELEVATOR ? (values.shaftId || "").trim() : "";
     const label = isShop
       ? nextCode || "未编号"
       : isObstacle
@@ -226,6 +229,7 @@ export default function FloorCreate() {
       name,
       areaNo,
       toiletType,
+      shaftId,
       label,
     };
 
@@ -456,6 +460,7 @@ export default function FloorCreate() {
         <Col xs={24} lg={18}>
           <Card
             title="楼层地图预览"
+            size="small"
             className={styles.previewCard}
             extra={
               <Space>
@@ -466,7 +471,7 @@ export default function FloorCreate() {
                 >
                   手动编辑商铺地图
                 </Button>
-                <Button type="link" onClick={() => history.push("/floors")}>
+                <Button type="link" icon={<LeftOutlined />} onClick={() => history.push("/floors")}>
                   返回列表
                 </Button>
               </Space>

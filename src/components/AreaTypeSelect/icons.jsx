@@ -3,14 +3,19 @@ import { AREA_TYPE } from "../../lib/shopGeometry.js";
 import {
   AREA_ICON_BASE_PROPS,
   AREA_TYPE_ICON_SHAPES,
+  TOILET_ICON_SHAPES,
 } from "../../lib/areaTypeIcons.js";
 
-const AreaTypeIcon = ({ type, ...props }) => (
+const IconShapes = ({ shapes, ...props }) => (
   <svg {...AREA_ICON_BASE_PROPS} {...props}>
-    {AREA_TYPE_ICON_SHAPES[type].map(({ tag: Tag, ...attrs }, index) => (
+    {shapes.map(({ tag: Tag, ...attrs }, index) => (
       <Tag key={index} {...attrs} />
     ))}
   </svg>
+);
+
+const AreaTypeIcon = ({ type, ...props }) => (
+  <IconShapes shapes={AREA_TYPE_ICON_SHAPES[type]} {...props} />
 );
 
 export const ShopIcon = (props) => <AreaTypeIcon type={AREA_TYPE.SHOP} {...props} />;
@@ -19,8 +24,16 @@ export const ElevatorIcon = (props) => (
   <AreaTypeIcon type={AREA_TYPE.ELEVATOR} {...props} />
 );
 
-export const ToiletIcon = (props) => (
-  <AreaTypeIcon type={AREA_TYPE.TOILET} {...props} />
+export const MaleToiletIcon = (props) => (
+  <IconShapes shapes={TOILET_ICON_SHAPES.male} {...props} />
+);
+
+export const FemaleToiletIcon = (props) => (
+  <IconShapes shapes={TOILET_ICON_SHAPES.female} {...props} />
+);
+
+export const BothToiletIcon = (props) => (
+  <IconShapes shapes={TOILET_ICON_SHAPES.both} {...props} />
 );
 
 export const NursingIcon = (props) => (

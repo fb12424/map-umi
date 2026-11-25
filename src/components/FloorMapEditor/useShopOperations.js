@@ -31,6 +31,7 @@ function derivedPartProps(properties) {
     name: properties.name || "",
     areaNo: properties.areaNo || "",
     toiletType: properties.toiletType || "",
+    shaftId: properties.shaftId || "",
     code: "",
     merchantNo: "",
     merchantName: "",

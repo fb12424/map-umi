@@ -53,7 +53,13 @@ function createEditorLabelElement(feature) {
 
   const element = document.createElement("div");
   element.className = shopLabelStyles.shopLabel;
-  return renderShopLabel(element, text, "", areaTypeOf(feature.properties));
+  return renderShopLabel(
+    element,
+    text,
+    "",
+    areaTypeOf(feature.properties),
+    feature.properties.toiletType,
+  );
 }
 
 export default function useEditorMap({

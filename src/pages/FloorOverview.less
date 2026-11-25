@@ -1,0 +1,181 @@
+.overviewPage {
+  height: calc(100vh - 112px);
+  min-height: 600px;
+}
+
+.overviewCard {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+
+  > :global(.ant-card-body) {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    padding: 0;
+  }
+}
+
+.pageLoading {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.overviewBody {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.floorRail {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 56px;
+  padding: 12px 0;
+  overflow-y: auto;
+  border-right: 1px solid #f0f0f0;
+}
+
+.floorButton {
+  flex: none;
+  width: 40px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #475569;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background: #f1f5f9;
+  }
+
+  &.isActive {
+    background: #2563eb;
+    color: #fff;
+  }
+}
+
+.mapArea {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cardContent {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.navSummary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.navSummaryMain {
+  // flex: 1 1 240px;
+  min-width: 0;
+}
+
+.navSummaryTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.navSummaryHint {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.navSummaryActions {
+  display: flex;
+  flex: none;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.mapPlaceholder {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 520px;
+  background: #eef1f6;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.spinMask,
+.errorMask {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(238, 241, 246, 0.85);
+  color: #334155;
+  font-size: 13px;
+  backdrop-filter: blur(1px);
+}
+
+@media (max-width: 720px) {
+  .overviewPage {
+    height: auto;
+    min-height: 0;
+  }
+
+  .overviewBody {
+    flex-direction: column;
+  }
+
+  .floorRail {
+    flex-direction: row;
+    width: auto;
+    max-height: none;
+    padding: 8px 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+}

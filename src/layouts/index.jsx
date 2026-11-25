@@ -4,11 +4,18 @@ import styles from '../styles/layout.less';
 
 const { Header, Content } = Layout;
 
-const MENU_ITEMS = [{ key: '/floors', label: '楼层管理' }];
+const MENU_ITEMS = [
+  { key: '/floors', label: '楼层管理' },
+  { key: '/overview', label: '全楼层预览' },
+];
 
 export default function BasicLayout({ children }) {
   const { pathname } = useLocation();
-  const selectedKey = pathname.startsWith('/floors') ? '/floors' : '';
+  const selectedKey = pathname.startsWith('/overview')
+    ? '/overview'
+    : pathname.startsWith('/floors')
+    ? '/floors'
+    : '';
 
   return (
     <Layout className={styles.appShell}>

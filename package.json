@@ -8,6 +8,7 @@
     "build": "umi build"
   },
   "dependencies": {
+    "@ant-design/icons": "^4.5.0",
     "@turf/buffer": "7.4.0",
     "@turf/union": "7.4.0",
     "antd": "4.24.16",

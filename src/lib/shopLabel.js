@@ -6,7 +6,7 @@ import { isFacilityType, labelWidth } from "./shopGeometry.js";
 import styles from "./shopLabel.less";
 
 // 可重入：同一 el 会反复调用（如切换"未编号/#序号"），用 classList 切换而非 className 覆盖
-export function renderShopLabel(el, text, merchantName, type) {
+export function renderShopLabel(el, text, merchantName, type, toiletType) {
   el.textContent = "";
   el.classList.toggle(styles.iconOnly, isFacilityType(type));
   el.classList.toggle(styles.hasMerchant, Boolean(merchantName));
@@ -14,7 +14,7 @@ export function renderShopLabel(el, text, merchantName, type) {
   const code = document.createElement("span");
   code.className = styles.shopLabelCode;
   if (isFacilityType(type)) {
-    const icon = createAreaTypeIconNode(type);
+    const icon = createAreaTypeIconNode(type, toiletType);
     if (icon) {
       icon.classList.add(styles.shopLabelIcon);
       code.appendChild(icon);
