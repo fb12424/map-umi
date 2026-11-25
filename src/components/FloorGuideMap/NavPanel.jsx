@@ -33,7 +33,7 @@ export default function NavPanel({
         )}
       </p>
 
-      <div className={styles.fpNav}>
+      {/* <div className={styles.fpNav}>
         <div className={styles.fpNavHeading}>铺位间导航</div>
 
         <div className={styles.fpNavMode} role="group" aria-label="导航选择方式">
@@ -168,7 +168,7 @@ export default function NavPanel({
         )}
 
         {nav.hint && <p className={styles.fpNavHint}>{nav.hint}</p>}
-      </div>
+      </div> */}
 
       <div className={styles.fpActions}>
         <div className={styles.fpViewSwitch} role="group" aria-label="视图模式">

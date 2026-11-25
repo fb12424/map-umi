@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  LngLatBounds,
   Map as MapLibreMap,
   Marker,
   NavigationControl,
@@ -22,18 +23,32 @@ import {
   isObstacleFeature,
   labelPoint,
 } from "../../lib/shopGeometry.js";
+import { arrowSamples, measureRoute } from "../../lib/routeFlow.js";
 import { labelSize, renderShopLabel } from "../../lib/shopLabel.js";
 import shopLabelStyles from "../../lib/shopLabel.less";
+import pinStyles from "./FloorStaticMap.less";
 
 const FLOOR_SOURCE = "static-preview-floor";
 const FLOOR_FILL_LAYER = "static-preview-floor-fill";
 const SHOP_SOURCE = "static-preview-shops";
 const SHOP_FILL_LAYER = "static-preview-shops-fill";
 const SHOP_OUTLINE_LAYER = "static-preview-shops-outline";
+const ROUTE_SOURCE = "static-nav-route";
+const ROUTE_CASING_LAYER = "static-nav-route-casing";
+const ROUTE_LINE_LAYER = "static-nav-route-line";
+const ROUTE_DOT_SOURCE = "static-nav-route-dots";
+const ROUTE_DOT_LAYER = "static-nav-route-dots-layer";
 const LABEL_MIN_ZOOM = 16.3;
+const NAV_ROUTE_COLOR = "#0f766e";
 
 // 只读楼层地图：楼板 + 铺位 + 标注 + hover 高亮，不含导航、统计和 3D
-export default function useStaticMap({ shops, floor }) {
+export default function useStaticMap({
+  shops,
+  floor,
+  route = null,
+  pins = [],
+  fitPaddingBottom = 0,
+}) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const hoveredRef = useRef(null);
@@ -86,21 +101,32 @@ export default function useStaticMap({ shops, floor }) {
     if (!map || !mapReady) return undefined;
 
     const labels = [];
+    const pinMarkers = [];
     let fitFrame = 0;
 
     const removeData = () => {
       for (const id of [
+        ROUTE_DOT_LAYER,
         SHOP_OUTLINE_LAYER,
         SHOP_FILL_LAYER,
         FLOOR_FILL_LAYER,
+        ROUTE_CASING_LAYER,
+        ROUTE_LINE_LAYER,
       ]) {
         if (map.getLayer(id)) map.removeLayer(id);
       }
-      for (const id of [SHOP_SOURCE, FLOOR_SOURCE]) {
+      for (const id of [
+        ROUTE_DOT_SOURCE,
+        SHOP_SOURCE,
+        FLOOR_SOURCE,
+        ROUTE_SOURCE,
+      ]) {
         if (map.getSource(id)) map.removeSource(id);
       }
       for (const item of labels) item.marker.remove();
       labels.length = 0;
+      for (const marker of pinMarkers) marker.remove();
+      pinMarkers.length = 0;
       hoveredRef.current = null;
     };
 
@@ -202,6 +228,105 @@ export default function useStaticMap({ shops, floor }) {
       });
     }
 
+    map.addSource(ROUTE_SOURCE, {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+    });
+    map.addLayer({
+      id: ROUTE_CASING_LAYER,
+      type: "line",
+      source: ROUTE_SOURCE,
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.95 },
+    });
+    map.addLayer({
+      id: ROUTE_LINE_LAYER,
+      type: "line",
+      source: ROUTE_SOURCE,
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": NAV_ROUTE_COLOR, "line-width": 4.5 },
+    });
+
+    // ensureArrowImage(map);
+    map.addSource(ROUTE_DOT_SOURCE, {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+    });
+    map.addLayer({
+      id: ROUTE_DOT_LAYER,
+      type: "circle",
+      source: ROUTE_DOT_SOURCE,
+      paint: {
+        "circle-radius": 4.5,
+        "circle-color": "#fff",
+      },
+    });
+
+    if (route?.length) {
+      map.getSource(ROUTE_SOURCE)?.setData({
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: { type: "LineString", coordinates: route },
+            properties: {},
+          },
+        ],
+      });
+    }
+
+    // 箭头沿路线匀速前进并从起点回绕，形成循环的指向动效
+    const routeMetrics = route?.length ? measureRoute(route) : null;
+    let arrowFrame = 0;
+    let arrowAt = 0;
+    let arrowTraveled = 0;
+
+    const pushArrowFrame = () => {
+      if (!routeMetrics) return;
+      const features = arrowSamples(routeMetrics, arrowTraveled).map(
+        ({ lng, lat, bearing }) => ({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [lng, lat] },
+          properties: { bearing },
+        }),
+      );
+      map.getSource(ROUTE_DOT_SOURCE)?.setData({
+        type: "FeatureCollection",
+        features,
+      });
+    };
+
+    if (routeMetrics) {
+      const speed = Math.min(Math.max(routeMetrics.total / 5, 6), 20); // 米/秒
+      pushArrowFrame();
+      const animateArrows = (timestamp) => {
+        arrowFrame = requestAnimationFrame(animateArrows);
+        if (!arrowAt) {
+          arrowAt = timestamp;
+          return;
+        }
+        // 约 25fps 刷新一次，低配机器上不跟屏幕刷新率抢 geojson 重建
+        const delta = Math.min(timestamp - arrowAt, 120);
+        if (delta < 40) return;
+        arrowAt = timestamp;
+        arrowTraveled += (delta / 1000) * speed;
+        pushArrowFrame();
+      };
+      arrowFrame = requestAnimationFrame(animateArrows);
+    }
+
+    for (const pin of pins ?? []) {
+      const el = document.createElement("div");
+      el.className = `${pinStyles.pin} ${pinStyles[pin.type] || ""}`;
+      el.textContent =
+        pin.type === "start" ? "起" : pin.type === "end" ? "终" : "梯";
+      pinMarkers.push(
+        new Marker({ element: el, anchor: "center" })
+          .setLngLat(pin.lngLat)
+          .addTo(map),
+      );
+    }
+
     const updateLabels = () => {
       if (!mapRef.current) return;
       const zoom = map.getZoom();
@@ -213,16 +338,14 @@ export default function useStaticMap({ shops, floor }) {
         return;
       }
 
-      const ordered = labels
-        .slice()
-        .sort(
-          (a, b) =>
-            Number(b.uid === hoveredRef.current) -
-              Number(a.uid === hoveredRef.current) ||
-            // 设施图标是导航地标，面积通常很小；先排它们，避免被大铺位标注挤掉
-            Number(isFacilityType(b.type)) - Number(isFacilityType(a.type)) ||
-            b.area - a.area,
-        );
+      const ordered = labels.slice().sort(
+        (a, b) =>
+          Number(b.uid === hoveredRef.current) -
+            Number(a.uid === hoveredRef.current) ||
+          // 设施图标是导航地标，面积通常很小；先排它们，避免被大铺位标注挤掉
+          Number(isFacilityType(b.type)) - Number(isFacilityType(a.type)) ||
+          b.area - a.area,
+      );
       const placed = [];
 
       for (const item of ordered) {
@@ -291,14 +414,25 @@ export default function useStaticMap({ shops, floor }) {
     map.on("mousemove", onMouseMove);
     map.on("mouseout", onMouseOut);
 
-    const bounds = featureBounds(
-      floor?.features?.length
-        ? [...shops.features, ...floor.features]
-        : shops.features,
-    );
+    const routeCoords = route?.length ? route : null;
+    let bounds;
+    if (routeCoords) {
+      bounds = new LngLatBounds();
+      for (const coordinate of routeCoords) bounds.extend(coordinate);
+      for (const pin of pins ?? []) bounds.extend(pin.lngLat);
+    } else {
+      bounds = featureBounds(
+        floor?.features?.length
+          ? [...shops.features, ...floor.features]
+          : shops.features,
+      );
+    }
+    const fitPadding = routeCoords
+      ? { top: 48, right: 48, bottom: 48 + (fitPaddingBottom ?? 0), left: 48 }
+      : 48;
     fitFrame = requestAnimationFrame(() => {
       const camera = map.cameraForBounds(bounds, {
-        padding: 48,
+        padding: fitPadding,
         maxZoom: 20,
       });
       if (!camera) return;
@@ -317,6 +451,7 @@ export default function useStaticMap({ shops, floor }) {
     return () => {
       if (mapRef.current !== map) return;
       cancelAnimationFrame(fitFrame);
+      cancelAnimationFrame(arrowFrame);
       map.off("move", updateLabels);
       map.off("resize", updateLabels);
       map.off("mousemove", onMouseMove);
@@ -324,7 +459,8 @@ export default function useStaticMap({ shops, floor }) {
       map.off("idle", updateLabels);
       removeData();
     };
-  }, [shops, floor, mapReady]);
+  }, [shops, floor, mapReady, route, pins, fitPaddingBottom]);
 
   return { containerRef };
 }
+

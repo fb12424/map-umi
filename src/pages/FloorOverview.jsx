@@ -1,18 +1,32 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, Empty, Result, Spin, Tag, message } from "antd";
 import { AimOutlined } from "@ant-design/icons";
 import FloorNavigationModal from "../components/FloorNavigationModal/index.jsx";
 import FloorStaticMap from "../components/FloorStaticMap/index.jsx";
+import RouteFloorSteps from "../components/RouteFloorSteps/index.jsx";
 import { loadFloorScene } from "../lib/floorScene.js";
 import {
+  computeFacilityRoute,
+  computeNavigationRoute,
+} from "../lib/crossFloorRouting.js";
+import {
+  availableFacilityKinds,
   compareFloors,
   facilityLabel,
+  findFloorByCode,
   merchantLabel,
+  resolveShopFeature,
 } from "../lib/navSelection.js";
 import { listMaps } from "../services/maps.js";
 import { listPlacedMerchants } from "../services/merchants.js";
 import pageStyles from "../styles/page.less";
 import styles from "./FloorOverview.less";
+
+function formatDuration(seconds) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "—";
+  if (seconds < 60) return `${Math.max(5, Math.round(seconds / 5) * 5)} 秒`;
+  return `${Math.round(seconds / 60)} 分钟`;
+}
 
 export default function FloorOverview() {
   const [floors, setFloors] = useState([]);
@@ -31,8 +45,12 @@ export default function FloorOverview() {
   const [navOpen, setNavOpen] = useState(false);
   const [navInitialValue, setNavInitialValue] = useState(null);
   const [navSelection, setNavSelection] = useState(null);
+  const [navRoute, setNavRoute] = useState(null);
   const merchantsLoadedRef = useRef(false);
   const merchantSeqRef = useRef(0);
+  const sceneCacheRef = useRef(new Map());
+  const navRunSeqRef = useRef(0);
+  const pendingNavRef = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -107,7 +125,98 @@ export default function FloorOverview() {
       });
   }, []);
 
+  const loadSceneCached = useCallback((floorId) => {
+    if (!sceneCacheRef.current.has(floorId)) {
+      sceneCacheRef.current.set(floorId, loadFloorScene(floorId));
+    }
+    return sceneCacheRef.current.get(floorId);
+  }, []);
+
+  const runNavigation = useCallback(
+    async (selection) => {
+      // 迟到的旧计算结果不覆盖新选择
+      const seq = ++navRunSeqRef.current;
+      setNavRoute({ loading: true, error: null, plan: null });
+      try {
+        const startFloor = findFloorByCode(floors, selection.start.floorCode);
+        if (!startFloor) {
+          throw new Error(`起点所在楼层「${selection.start.floorCode}」不存在`);
+        }
+        const startScene = await loadSceneCached(startFloor.id);
+        const startFeature = resolveShopFeature(
+          startScene.shops.features,
+          selection.start,
+        );
+        if (!startFeature) throw new Error("起点铺位未在该楼层地图中找到");
+
+        let plan;
+        if (selection.end.kind === "shop") {
+          const endMerchant = selection.end.merchant;
+          const endFloor = findFloorByCode(floors, endMerchant.floorCode);
+          if (!endFloor) {
+            throw new Error(`终点所在楼层「${endMerchant.floorCode}」不存在`);
+          }
+          const endScene = await loadSceneCached(endFloor.id);
+          const endFeature = resolveShopFeature(
+            endScene.shops.features,
+            endMerchant,
+          );
+          if (!endFeature) throw new Error("终点铺位未在该楼层地图中找到");
+
+          plan = computeNavigationRoute({
+            startScene: {
+              floorId: startFloor.id,
+              floorCode: startFloor.floorCode,
+              shops: startScene.shops,
+              floor: startScene.floor,
+            },
+            endScene: {
+              floorId: endFloor.id,
+              floorCode: endFloor.floorCode,
+              shops: endScene.shops,
+              floor: endScene.floor,
+            },
+            startFeature,
+            endFeature,
+          });
+        } else {
+          // 设施终点：只在起点所在楼层（即当前楼层）寻找
+          plan = computeFacilityRoute({
+            scene: {
+              floorId: startFloor.id,
+              floorCode: startFloor.floorCode,
+              shops: startScene.shops,
+              floor: startScene.floor,
+            },
+            startFeature,
+            facilityKind: selection.end.facilityKind,
+          });
+        }
+
+        if (seq !== navRunSeqRef.current) return;
+        setNavRoute({ loading: false, error: null, plan });
+        setActiveId(plan.startFloorId);
+      } catch (err) {
+        if (seq !== navRunSeqRef.current) return;
+        setNavRoute({
+          loading: false,
+          error: err.message || "路线计算失败",
+          plan: null,
+        });
+      }
+    },
+    [floors, loadSceneCached],
+  );
+
+  const flushPendingNav = () => {
+    const selection = pendingNavRef.current;
+    pendingNavRef.current = null;
+    if (selection) runNavigation(selection);
+  };
+
   const openNavigation = () => {
+    // 弹窗还没走完离场就被重新打开时，afterClose 可能不再触发，先把待算的路线放出去
+    flushPendingNav();
     setNavInitialValue(
       navSelection
         ? {
@@ -131,10 +240,33 @@ export default function FloorOverview() {
     }
   };
 
+  // 路线计算是同步重任务（建栅格 + A*，约 0.1-1s），必须在弹窗离场动画
+  // 结束、浏览器能绘制之后再跑，否则第二次导航（场景已缓存）会把弹窗冻在屏幕上
   const handleNavigationConfirm = (selection) => {
+    if (pendingNavRef.current) return;
+    pendingNavRef.current = selection;
+    setNavOpen(false);
     setNavSelection(selection);
+    setNavRoute({ loading: true, error: null, plan: null });
+  };
+
+  const handleNavCancel = () => {
+    pendingNavRef.current = null;
     setNavOpen(false);
   };
+
+  const clearNavigation = () => {
+    setNavSelection(null);
+    setNavRoute(null);
+  };
+
+  const activeFloor = floors.find((floor) => floor.id === activeId) ?? null;
+  const activeFloorCode = activeFloor?.floorCode ?? null;
+
+  const facilityAvailability = useMemo(
+    () => (scene ? availableFacilityKinds(scene.shops.features) : new Set()),
+    [scene],
+  );
 
   const navStartLabel = navSelection ? merchantLabel(navSelection.start) : "";
   const navEndLabel = navSelection
@@ -142,13 +274,68 @@ export default function FloorOverview() {
       ? merchantLabel(navSelection.end.merchant)
       : facilityLabel(navSelection.end.facilityKind)
     : "";
-  const navSummaryHint = navSelection
-    ? navSelection.crossFloor
-      ? "跨楼层导航待接入"
-      : navSelection.end.kind === "facility"
-      ? "导航待接入 · 将自动选择最近设施"
-      : "导航待接入"
-    : "";
+
+  const navSummaryHint = (() => {
+    if (!navSelection) return "";
+    if (navRoute?.loading) return "正在计算路线…";
+    if (navRoute?.error) return navRoute.error;
+    const plan = navRoute?.plan;
+    if (!plan) return "";
+    const ride = plan.shaftName ? ` · 乘 ${plan.shaftName}` : "";
+    return `${Math.round(plan.distance)} m · 约 ${formatDuration(
+      plan.duration,
+    )}${ride}`;
+  })();
+
+  const activeRoute = useMemo(() => {
+    const plan = navRoute?.plan;
+    if (!plan) return null;
+    const walk = plan.segments.find(
+      (segment) => segment.kind === "walk" && segment.floorId === activeId,
+    );
+    return walk?.coordinates ?? null;
+  }, [navRoute, activeId]);
+
+  const activePins = useMemo(() => {
+    const plan = navRoute?.plan;
+    if (!plan) return [];
+    const pins = [];
+    if (activeId === plan.startFloorId) {
+      pins.push({ lngLat: plan.startPoint, type: "start" });
+    }
+    if (activeId === plan.endFloorId) {
+      pins.push({ lngLat: plan.endPoint, type: "end" });
+    }
+    for (const segment of plan.segments) {
+      if (segment.kind !== "connector") continue;
+      if (segment.fromFloorId === activeId) {
+        pins.push({ lngLat: segment.from, type: "transfer" });
+      }
+      if (segment.toFloorId === activeId) {
+        pins.push({ lngLat: segment.to, type: "transfer" });
+      }
+    }
+    return pins;
+  }, [navRoute, activeId]);
+
+  const routeSteps = useMemo(() => {
+    const plan = navRoute?.plan;
+    if (!plan?.steps?.length) return [];
+    return plan.steps.map((step) => ({
+      ...step,
+      label:
+        step.role === "start"
+          ? navStartLabel
+          : step.role === "end"
+          ? navEndLabel
+          : step.label || "",
+    }));
+  }, [navRoute, navStartLabel, navEndLabel]);
+
+  const connectorLabel = useMemo(() => {
+    const plan = navRoute?.plan;
+    return plan?.shaftName ? `乘 ${plan.shaftName}` : "";
+  }, [navRoute]);
 
   const listBody = () => {
     if (listError) {
@@ -210,7 +397,13 @@ export default function FloorOverview() {
         <div className={styles.mapArea}>
           {scene ? (
             scene.shops?.features?.length ? (
-              <FloorStaticMap shops={scene.shops} floor={scene.floor} />
+              <FloorStaticMap
+                shops={scene.shops}
+                floor={scene.floor}
+                route={activeRoute}
+                pins={activePins}
+                fitPaddingBottom={routeSteps.length ? 88 : 0}
+              />
             ) : (
               <div className={styles.mapPlaceholder}>
                 <Empty
@@ -227,7 +420,14 @@ export default function FloorOverview() {
             </div>
           )}
 
-          {sceneLoading && scene && (
+          <RouteFloorSteps
+            steps={routeSteps}
+            connectorLabel={connectorLabel}
+            activeFloorId={activeId}
+            onChangeFloor={setActiveId}
+          />
+
+          {(navRoute?.loading || (sceneLoading && scene)) && (
             <div className={styles.spinMask}>
               <Spin size="large" />
             </div>
@@ -295,21 +495,23 @@ export default function FloorOverview() {
                   <span>{navStartLabel}</span>
                   <span aria-hidden="true">→</span>
                   <span>{navEndLabel}</span>
-                  {navSelection.crossFloor && (
-                    <Tag color="orange">跨楼层待支持</Tag>
+                  {navRoute?.plan && !navRoute.plan.sameFloor && (
+                    <Tag color="blue">跨层</Tag>
                   )}
                 </div>
-                <div className={styles.navSummaryHint}>{navSummaryHint}</div>
+                <div
+                  className={`${styles.navSummaryHint} ${
+                    navRoute?.error ? styles.navSummaryError : ""
+                  }`}
+                >
+                  {navSummaryHint}
+                </div>
               </div>
               <div className={styles.navSummaryActions}>
                 <Button type="link" size="small" onClick={openNavigation}>
                   修改
                 </Button>
-                <Button
-                  type="link"
-                  size="small"
-                  onClick={() => setNavSelection(null)}
-                >
+                <Button type="link" size="small" onClick={clearNavigation}>
                   清除
                 </Button>
               </div>
@@ -324,11 +526,16 @@ export default function FloorOverview() {
         open={navOpen}
         merchants={merchants}
         loading={merchantsLoading}
+        routeLoading={navRoute?.loading}
         error={merchantsError}
         onRetry={loadPlacedMerchants}
         initialValue={navInitialValue}
-        onCancel={() => setNavOpen(false)}
+        activeFloorCode={activeFloorCode}
+        facilityAvailability={facilityAvailability}
+        facilitiesLoading={sceneLoading}
+        onCancel={handleNavCancel}
         onConfirm={handleNavigationConfirm}
+        afterClose={flushPendingNav}
       />
     </div>
   );

@@ -343,7 +343,7 @@ function cellCenter(grid, cell) {
   };
 }
 
-function snapToMain(grid, lngLat) {
+export function snapToMain(grid, lngLat) {
   const [px, py] = grid.project(lngLat);
   const sx = Math.floor((px - grid.minX) / grid.cellSize);
   const sy = Math.floor((py - grid.minY) / grid.cellSize);

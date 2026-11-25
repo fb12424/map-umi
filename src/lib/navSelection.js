@@ -2,6 +2,7 @@ import {
   FACILITY_KIND,
   FACILITY_KIND_LABEL,
   facilityKindsOf,
+  isShopFeature,
 } from "./shopGeometry.js";
 
 // 楼层编号是自由文本：1F/3F 取正，B2、-1F 取负；解析不出数字的排到最后
@@ -97,4 +98,44 @@ export function matchFacility(properties, navKind) {
   if (!genders || !kinds.includes(FACILITY_KIND.TOILET)) return false;
   const type = (properties?.toiletType || "").trim() || "both";
   return genders.has(type);
+}
+
+export function findFloorByCode(floors, code) {
+  const target = normalizeFloorCode(code);
+  return (
+    (floors ?? []).find((floor) => normalizeFloorCode(floor.floorCode) === target) ??
+    null
+  );
+}
+
+// 商户记录只有 boothCode / departmentCode，解析回楼层地图里的商铺要素
+export function resolveShopFeature(features, merchant) {
+  const code = String(merchant?.boothCode ?? "").trim();
+  const dept = String(merchant?.departmentCode ?? "").trim();
+  const byCode = code
+    ? features.find(
+        (feature) =>
+          isShopFeature(feature.properties) &&
+          String(feature.properties.code ?? "").trim() === code,
+      )
+    : null;
+  if (byCode) return byCode;
+  const byDept = dept
+    ? features.find(
+        (feature) =>
+          isShopFeature(feature.properties) &&
+          String(feature.properties.merchantNo ?? "").trim() === dept,
+      )
+    : null;
+  return byDept ?? null;
+}
+
+export function availableFacilityKinds(features) {
+  const available = new Set();
+  for (const option of FACILITY_OPTIONS) {
+    if ((features ?? []).some((f) => matchFacility(f.properties, option.value))) {
+      available.add(option.value);
+    }
+  }
+  return available;
 }

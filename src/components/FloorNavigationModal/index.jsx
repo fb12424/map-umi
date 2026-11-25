@@ -11,6 +11,7 @@ import {
 import {
   FACILITY_OPTIONS,
   compareMerchants,
+  facilityLabel,
   isCrossFloor,
   merchantLabel,
   merchantSearchText,
@@ -45,11 +46,16 @@ export default function FloorNavigationModal({
   open,
   merchants = [],
   loading = false,
+  routeLoading = false,
   error = null,
   onRetry,
   initialValue,
+  activeFloorCode,
+  facilityAvailability = new Set(),
+  facilitiesLoading = false,
   onCancel,
   onConfirm,
+  afterClose,
 }) {
   const [startId, setStartId] = useState(null);
   const [endMode, setEndMode] = useState("shop");
@@ -64,10 +70,9 @@ export default function FloorNavigationModal({
     setFacilityKind(initialValue?.facilityKind ?? null);
   }, [open]);
 
-  const sortedMerchants = useMemo(
-    () => [...merchants].sort(compareMerchants),
-    [merchants],
-  );
+  const sortedMerchants = useMemo(() => [...merchants].sort(compareMerchants), [
+    merchants,
+  ]);
 
   const merchantOptions = useMemo(() => {
     const counts = new Map();
@@ -90,6 +95,11 @@ export default function FloorNavigationModal({
     });
   }, [sortedMerchants]);
 
+  const merchantById = useMemo(
+    () => new Map(sortedMerchants.map((merchant) => [merchant.id, merchant])),
+    [sortedMerchants],
+  );
+
   const startMerchant =
     sortedMerchants.find((merchant) => merchant.id === startId) || null;
   const endMerchant =
@@ -100,25 +110,55 @@ export default function FloorNavigationModal({
     Boolean(startMerchant && endMerchant) &&
     isCrossFloor(startMerchant, endMerchant);
 
-  const startOptions =
-    endMode === "shop" && endShopId
-      ? merchantOptions.filter((option) => option.value !== endShopId)
-      : merchantOptions;
+  const facilityMode = endMode === "facility";
+  const activeFloor = String(activeFloorCode ?? "")
+    .trim()
+    .toUpperCase();
+  const isOnActiveFloor = (merchant) =>
+    String(merchant?.floorCode ?? "")
+      .trim()
+      .toUpperCase() === activeFloor;
+
+  const startOptions = useMemo(() => {
+    const base =
+      endMode === "shop" && endShopId
+        ? merchantOptions.filter((option) => option.value !== endShopId)
+        : merchantOptions;
+    return facilityMode
+      ? base.filter((option) => isOnActiveFloor(merchantById.get(option.value)))
+      : base;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [endMode, endShopId, merchantOptions, merchantById, activeFloor]);
+
   const endOptions = merchantOptions.filter(
     (option) => option.value !== startId,
   );
 
+  const facilityUnavailable =
+    facilityMode &&
+    Boolean(facilityKind) &&
+    !facilityAvailability.has(facilityKind);
+
   const canConfirm =
     !loading &&
     Boolean(startMerchant) &&
+    (facilityMode ? isOnActiveFloor(startMerchant) : true) &&
     (endMode === "shop"
       ? Boolean(endMerchant) && endMerchant.id !== startMerchant.id
-      : Boolean(facilityKind));
+      : Boolean(facilityKind) && !facilitiesLoading && !facilityUnavailable);
 
   const handleStartChange = (value) => {
     const next = value ?? null;
     setStartId(next);
     if (endShopId === next) setEndShopId(null);
+  };
+
+  const handleEndModeChange = (next) => {
+    setEndMode(next);
+    if (next === "facility" && !isOnActiveFloor(startMerchant)) {
+      setStartId(null);
+      setFacilityKind(null);
+    }
   };
 
   const handleConfirm = () => {
@@ -139,11 +179,17 @@ export default function FloorNavigationModal({
       open={open}
       width={560}
       onCancel={onCancel}
+      afterClose={afterClose}
       destroyOnClose
       footer={
         <Space>
           <Button onClick={onCancel}>取消</Button>
-          <Button type="primary" disabled={!canConfirm} onClick={handleConfirm}>
+          <Button
+            type="primary"
+            loading={routeLoading}
+            disabled={!canConfirm}
+            onClick={handleConfirm}
+          >
             确定选择
           </Button>
         </Space>
@@ -189,7 +235,7 @@ export default function FloorNavigationModal({
             <Segmented
               options={END_MODE_OPTIONS}
               value={endMode}
-              onChange={setEndMode}
+              onChange={handleEndModeChange}
             />
           </div>
 
@@ -216,23 +262,32 @@ export default function FloorNavigationModal({
           )}
         </div>
 
-        {endMode === "facility" && (
-          <p className={styles.hint}>
-            导航接入后会自动选择离起点最近的一个设施。
-          </p>
-        )}
+        {facilityMode && (
+          <>
+            {facilitiesLoading ? (
+              <p className={styles.hint}>正在加载当前楼层设施…</p>
+            ) : facilityKind && facilityUnavailable ? (
+              <Alert
+                type="warning"
+                showIcon
+                message={`${activeFloorCode || "当前楼层"} 没有${facilityLabel(
+                  facilityKind,
+                )}`}
+                description="请切换到其他楼层后重新选择起点。"
+              />
+            ) : facilityKind ? (
+              <p className={styles.hint}>
+                将在 {activeFloorCode || "当前楼层"}{" "}
+                内自动选择离起点最近的可用设施。
+              </p>
+            ) : null}
 
-        {crossFloor && (
-          <Alert
-            type="warning"
-            showIcon
-            message="跨楼层导航待支持"
-            description={`起点在 ${
-              startMerchant.floorCode || "未知楼层"
-            }，终点在 ${
-              endMerchant.floorCode || "未知楼层"
-            }。可以先保存这次选择，等跨楼层导航接入后再使用。`}
-          />
+            {!loading && startOptions.length === 0 && (
+              <p className={styles.hint}>
+                当前楼层暂无已关联商户可作起点，请切换楼层。
+              </p>
+            )}
+          </>
         )}
 
         {!loading && !error && !merchants.length && (
@@ -246,3 +301,4 @@ export default function FloorNavigationModal({
     </Modal>
   );
 }
+

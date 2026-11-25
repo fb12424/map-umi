@@ -12,3 +12,29 @@
     inset: 0;
   }
 }
+
+.pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+
+  &.start {
+    background: #16a34a;
+  }
+
+  &.end {
+    background: #dc2626;
+  }
+
+  &.transfer {
+    background: #0f766e;
+  }
+}
